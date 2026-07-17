@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import PopupSheet from '../../components/common/PopupSheet';
 import { Colors } from '../../constants/theme';
 import { updateIngredient } from '../../services/ingredients';
 
@@ -60,6 +61,7 @@ export default function EditIngredientModal() {
   }
 
   return (
+    <PopupSheet title="Edit Ingredient">
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       {/* Name */}
       <View style={styles.section}>
@@ -185,14 +187,14 @@ export default function EditIngredientModal() {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+    </PopupSheet>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 4,
   },
   section: {
     marginBottom: 16,

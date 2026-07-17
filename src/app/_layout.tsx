@@ -11,10 +11,9 @@ export default function RootLayout() {
       <Stack.Screen
         name="modals/add-ingredient"
         options={{
-          presentation: 'modal',
-          headerShown: true,
-          title: 'Add Ingredient',
-          headerTintColor: '#E07B39',
+          presentation: 'transparentModal',
+          headerShown: false,
+          animation: 'fade',
         }}
       />
       <Stack.Screen
@@ -55,19 +54,17 @@ export default function RootLayout() {
       <Stack.Screen
         name="modals/add-variant"
         options={{
-          presentation: 'modal',
-          headerShown: true,
-          title: 'Add Variant',
-          headerTintColor: '#E07B39',
+          presentation: 'transparentModal',
+          headerShown: false,
+          animation: 'fade',
         }}
       />
       <Stack.Screen
         name="modals/add-recipe-ingredient"
         options={{
-          presentation: 'modal',
-          headerShown: true,
-          title: 'Add Recipe Ingredient',
-          headerTintColor: '#E07B39',
+          presentation: 'transparentModal',
+          headerShown: false,
+          animation: 'fade',
         }}
       />
       <Stack.Screen
