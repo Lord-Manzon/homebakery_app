@@ -1,0 +1,330 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs, router, useFocusEffect } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Colors } from '../../constants/theme';
+import { getSettings } from '../../services/settings';
+
+const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.72;
+
+export default function TabsLayout() {
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [businessName, setBusinessName] = useState('HomeBakery');
+  const slideAnim = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
+  const overlayAnim = useRef(new Animated.Value(0)).current;
+
+  // Load business name for sidebar header
+  useFocusEffect(useCallback(() => {
+    getSettings().then((s) => {
+      if (s?.business_name) setBusinessName(s.business_name);
+    });
+  }, []));
+
+  function openSidebar() {
+    setShowSidebar(true);
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }
+
+  function closeSidebar(callback?: () => void) {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: SIDEBAR_WIDTH,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowSidebar(false);
+      callback?.();
+    });
+  }
+
+  function navigate(path: string) {
+    closeSidebar(() => router.push(path as any));
+  }
+
+  const MenuButton = () => (
+    <TouchableOpacity onPress={openSidebar} style={{ marginRight: 16 }}>
+      <Ionicons name="menu-outline" size={26} color={Colors.textPrimary} />
+    </TouchableOpacity>
+  );
+
+  return (
+    <>
+      {/* Sidebar Drawer */}
+      <Modal
+        visible={showSidebar}
+        transparent
+        animationType="none"
+        onRequestClose={() => closeSidebar()}
+      >
+        <View style={styles.modalContainer}>
+          {/* Overlay */}
+          <Animated.View
+            style={[styles.overlay, { opacity: overlayAnim }]}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => closeSidebar()}
+            />
+          </Animated.View>
+
+          {/* Sidebar Panel */}
+          <Animated.View
+            style={[
+              styles.sidebar,
+              { transform: [{ translateX: slideAnim }] },
+            ]}
+          >
+            {/* Header */}
+            <View style={styles.sidebarHeader}>
+              <View style={styles.sidebarLogoRow}>
+                <View style={styles.sidebarLogoIcon}>
+                  <Ionicons name="storefront" size={20} color="#fff" />
+                </View>
+                <View>
+                  <Text style={styles.sidebarBusinessName}>{businessName}</Text>
+                  <Text style={styles.sidebarSubtitle}>Bakery Manager</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider} />
+
+            {/* Menu Label */}
+            <Text style={styles.sectionLabel}>MORE</Text>
+
+            {/* Menu Items */}
+            <TouchableOpacity
+              style={styles.sidebarItem}
+              onPress={() => navigate('/modals/expenses')}
+            >
+              <View style={[styles.itemIcon, { backgroundColor: '#FFF3E0' }]}>
+                <Ionicons name="receipt-outline" size={18} color={Colors.primary} />
+              </View>
+              <Text style={styles.sidebarItemText}>Expenses</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sidebarItem}
+              onPress={() => navigate('/modals/reports')}
+            >
+              <View style={[styles.itemIcon, { backgroundColor: '#E8F5E9' }]}>
+                <Ionicons name="bar-chart-outline" size={18} color={Colors.success} />
+              </View>
+              <Text style={styles.sidebarItemText}>Reports</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sidebarItem}
+              onPress={() => navigate('/modals/settings')}
+            >
+              <View style={[styles.itemIcon, { backgroundColor: '#E3F2FD' }]}>
+                <Ionicons name="settings-outline" size={18} color={Colors.info} />
+              </View>
+              <Text style={styles.sidebarItemText}>Settings</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Footer */}
+            <Text style={styles.footerText}>HomeBakery v1.0</Text>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      <Tabs
+        screenOptions={{
+          headerShown: true,
+          headerRight: () => <MenuButton />,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: Colors.card },
+          headerTitleStyle: { color: Colors.textPrimary, fontWeight: '700' },
+          tabBarActiveTintColor: Colors.primary,
+          tabBarInactiveTintColor: '#999',
+          tabBarStyle: {
+            backgroundColor: '#fff',
+            borderTopColor: '#eee',
+            height: 60,
+            paddingBottom: 8,
+          },
+          tabBarLabelStyle: {
+            fontSize: 11,
+          },
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Dashboard',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="grid-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="orders"
+          options={{
+            title: 'Orders',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="receipt-outline" size={size} color={color} />
+            ),
+            headerRight: () => <MenuButton />,
+          }}
+        />
+        <Tabs.Screen
+          name="production"
+          options={{
+            title: 'Production',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="flame-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="products"
+          options={{
+            title: 'Products',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="storefront-outline" size={size} color={color} />
+            ),
+            headerRight: () => <MenuButton />,
+          }}
+        />
+        <Tabs.Screen
+          name="inventory"
+          options={{
+            title: 'Inventory',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="cube-outline" size={size} color={color} />
+            ),
+            headerRight: () => <MenuButton />,
+          }}
+        />
+      </Tabs>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sidebar: {
+    width: SIDEBAR_WIDTH,
+    height: '100%',
+    backgroundColor: Colors.card,
+    elevation: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    paddingBottom: 32,
+  },
+  sidebarHeader: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 24,
+  },
+  sidebarLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sidebarLogoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sidebarBusinessName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  sidebarSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 8,
+    borderRadius: 10,
+  },
+  itemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sidebarItemText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+  },
+  footerText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: Colors.textMuted,
+    paddingBottom: 8,
+  },
+});
