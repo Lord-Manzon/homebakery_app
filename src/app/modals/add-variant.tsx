@@ -1,15 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import PopupSheet from '../../components/common/PopupSheet';
 import { Colors } from '../../constants/theme';
 import { addVariant } from '../../services/products';
 
@@ -51,6 +52,7 @@ export default function AddVariantModal() {
   }
 
   return (
+    <PopupSheet title="Add Variant">
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
 
       {/* Variant Name */}
@@ -111,14 +113,14 @@ export default function AddVariantModal() {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+    </PopupSheet>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 4,
   },
   section: {
     marginBottom: 16,
