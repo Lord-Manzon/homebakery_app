@@ -1,18 +1,123 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from 'expo-router';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+export const unstable_settings = {
+  initialRouteName: '(tabs)',
+};
 
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="modals/add-ingredient"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Add Ingredient',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/edit-ingredient"
+        options={{
+          presentation: 'transparentModal',
+          headerShown: false,
+          animation: 'fade',
+        }}
+      />
+      <Stack.Screen
+        name="modals/add-product"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Add Product',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/edit-product"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Edit Product',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/product-detail"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Product Details',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/add-variant"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Add Variant',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/add-recipe-ingredient"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Add Recipe Ingredient',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/add-order"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'New Order',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/order-detail"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Order Details',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/edit-order"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Edit Order',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/add-expense"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Add Expense',
+          headerTintColor: '#E07B39',
+        }}
+      />
+      <Stack.Screen
+        name="modals/expenses"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="modals/reports"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="modals/settings"
+        options={{ headerShown: false }}
+      />
+    </Stack>
   );
 }
