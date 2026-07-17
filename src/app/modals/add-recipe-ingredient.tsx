@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import PopupSheet from '../../components/common/PopupSheet';
 import { Colors } from '../../constants/theme';
 import { getIngredients } from '../../services/ingredients';
 import { addRecipeIngredient } from '../../services/products';
@@ -97,13 +98,16 @@ export default function AddRecipeIngredientModal() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={Colors.primary} />
-      </View>
+      <PopupSheet title="Add Recipe Ingredient">
+        <View style={styles.centered}>
+          <ActivityIndicator color={Colors.primary} />
+        </View>
+      </PopupSheet>
     );
   }
 
   return (
+    <PopupSheet title="Add Recipe Ingredient">
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
 
       {/* Ingredient Selector */}
@@ -246,17 +250,17 @@ export default function AddRecipeIngredientModal() {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+    </PopupSheet>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 4,
   },
   centered: {
-    flex: 1,
+    paddingVertical: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },
