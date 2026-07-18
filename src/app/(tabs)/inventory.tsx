@@ -13,15 +13,33 @@ import {
 } from 'react-native';
 import FAB from '../../components/common/FAB';
 import { Colors } from '../../constants/theme';
-import { deleteIngredient, getIngredients } from '../../services/ingredients';
+import {
+  adjustStock,
+  deleteIngredient,
+  getIngredientRecipeCounts,
+  getIngredients,
+  getProductsUsingIngredient,
+} from '../../services/ingredients';
 import { Ingredient } from '../../types';
 
 export default function InventoryScreen() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [filtered, setFiltered] = useState<Ingredient[]>([]);
+  const [recipeCounts, setRecipeCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [usedIn, setUsedIn] = useState<{
+    ingredientName: string;
+    products: string[];
+    loading: boolean;
+  } | null>(null);
+  const [restock, setRestock] = useState<{
+    ingredient: Ingredient;
+    amount: string;
+    error: string;
+    saving: boolean;
+  } | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -33,7 +51,42 @@ export default function InventoryScreen() {
     const data = await getIngredients();
     setIngredients(data);
     setFiltered(data);
+    const counts = await getIngredientRecipeCounts(data.map((i) => i.id));
+    setRecipeCounts(counts);
     setLoading(false);
+  }
+
+  async function openUsedIn(ingredient: Ingredient) {
+    setUsedIn({ ingredientName: ingredient.name, products: [], loading: true });
+    const products = await getProductsUsingIngredient(ingredient.id);
+    setUsedIn({ ingredientName: ingredient.name, products, loading: false });
+  }
+
+  function openRestock(ingredient: Ingredient) {
+    setRestock({ ingredient, amount: '', error: '', saving: false });
+  }
+
+  async function handleRestockSave() {
+    if (!restock) return;
+
+    const amountNum = parseFloat(restock.amount);
+    if (!restock.amount || isNaN(amountNum) || amountNum <= 0) {
+      setRestock({ ...restock, error: 'Enter an amount greater than 0.' });
+      return;
+    }
+
+    setRestock({ ...restock, saving: true, error: '' });
+
+    const previousStock = restock.ingredient.current_stock;
+    const newStock = previousStock + amountNum;
+    const success = await adjustStock(restock.ingredient.id, newStock, previousStock);
+
+    if (success) {
+      setRestock(null);
+      await load();
+    } else {
+      setRestock({ ...restock, saving: false, error: 'Failed to update stock. Please try again.' });
+    }
   }
 
   useFocusEffect(
@@ -84,6 +137,34 @@ export default function InventoryScreen() {
 
   const isLowStock = (ingredient: Ingredient) =>
     ingredient.current_stock <= ingredient.low_stock_threshold;
+
+  type StockStatus = 'out' | 'low' | 'in';
+
+  function getStockStatus(ingredient: Ingredient): StockStatus {
+    if (ingredient.current_stock <= 0) return 'out';
+    if (ingredient.current_stock <= ingredient.low_stock_threshold) return 'low';
+    return 'in';
+  }
+
+  type StatusConfigMap = Record<StockStatus, { label: string; badgeStyle: object; textStyle: object }>;
+
+  const STATUS_CONFIG: StatusConfigMap = {
+    out: {
+      label: 'Out of Stock',
+      badgeStyle: styles.statusBadgeOut,
+      textStyle: styles.statusTextOut,
+    },
+    low: {
+      label: 'Low Stock',
+      badgeStyle: styles.statusBadgeLow,
+      textStyle: styles.statusTextLow,
+    },
+    in: {
+      label: 'In Stock',
+      badgeStyle: styles.statusBadgeIn,
+      textStyle: styles.statusTextIn,
+    },
+  };
 
   if (loading) {
     return (
@@ -143,50 +224,79 @@ export default function InventoryScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardLeft}>
-              {isLowStock(item) && (
-                <View style={styles.lowStockBadge}>
-                  <Text style={styles.lowStockText}>Low Stock</Text>
+        renderItem={({ item }) => {
+          const status = getStockStatus(item);
+          const statusConfig = STATUS_CONFIG[status];
+          const count = recipeCounts[item.id] ?? 0;
+
+          return (
+            <View style={styles.card}>
+              <View style={styles.cardLeft}>
+                <Text style={styles.ingredientName}>{item.name}</Text>
+
+                <View style={styles.qtyRow}>
+                  <Text style={styles.qtyValue}>
+                    {formatQty(item.current_stock)} {item.unit}
+                  </Text>
+                  {item.category && (
+                    <Text style={styles.category}> · {item.category}</Text>
+                  )}
                 </View>
-              )}
-              <Text style={styles.ingredientName}>{item.name}</Text>
-              {item.category && (
-                <Text style={styles.category}>{item.category}</Text>
-              )}
-              <Text style={styles.stock}>
-                {item.current_stock} {item.unit}
-              </Text>
+
+                {count > 0 && (
+                  <TouchableOpacity
+                    style={styles.recipeRow}
+                    onPress={() => openUsedIn(item)}
+                  >
+                    <Ionicons name="restaurant-outline" size={12} color={Colors.textMuted} />
+                    <Text style={styles.recipeText}>
+                      Used in {count} {count === 1 ? 'recipe' : 'recipes'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.cardRight}>
+                <View style={[styles.statusBadge, statusConfig.badgeStyle]}>
+                  <Text style={[styles.statusBadgeText, statusConfig.textStyle]}>
+                    {statusConfig.label}
+                  </Text>
+                </View>
+                <View style={styles.iconRow}>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => openRestock(item)}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color={Colors.success} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => router.push({
+                      pathname: '/modals/edit-ingredient',
+                      params: {
+                        id: item.id,
+                        name: item.name,
+                        category: item.category ?? '',
+                        unit: item.unit,
+                        current_stock: item.current_stock.toString(),
+                        low_stock_threshold: item.low_stock_threshold.toString(),
+                        average_cost: item.average_cost?.toString() ?? '0',
+                        notes: item.notes ?? '',
+                      },
+                    })}
+                  >
+                    <Ionicons name="create-outline" size={20} color="#666" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => handleDelete(item)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#e74c3c" />
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-            <View style={styles.cardRight}>
-              <TouchableOpacity
-  style={styles.iconButton}
-  onPress={() => router.push({
-    pathname: '/modals/edit-ingredient',
-    params: {
-      id: item.id,
-      name: item.name,
-      category: item.category ?? '',
-      unit: item.unit,
-      current_stock: item.current_stock.toString(),
-      low_stock_threshold: item.low_stock_threshold.toString(),
-      average_cost: item.average_cost?.toString() ?? '0',
-      notes: item.notes ?? '',
-    },
-  })}
->
-  <Ionicons name="create-outline" size={20} color="#666" />
-</TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => handleDelete(item)}
-              >
-                <Ionicons name="trash-outline" size={20} color="#e74c3c" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+          );
+        }}
         
       />
       <FAB onPress={() => router.push('/modals/add-ingredient')} />
@@ -212,8 +322,98 @@ export default function InventoryScreen() {
         </View>
       </View>
     </Modal>
+
+    <Modal
+      visible={!!usedIn}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setUsedIn(null)}
+    >
+      <TouchableOpacity
+        style={styles.confirmOverlay}
+        activeOpacity={1}
+        onPress={() => setUsedIn(null)}
+      >
+        <TouchableOpacity style={styles.usedInBox} activeOpacity={1} onPress={() => {}}>
+          <View style={styles.usedInHeader}>
+            <Text style={styles.confirmTitle}>Used In — {usedIn?.ingredientName}</Text>
+            <TouchableOpacity onPress={() => setUsedIn(null)}>
+              <Ionicons name="close" size={22} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.usedInSubtitle}>
+            {usedIn?.ingredientName} appears in:
+          </Text>
+          {usedIn?.loading ? (
+            <Text style={styles.confirmMessage}>Loading...</Text>
+          ) : (
+            usedIn?.products.map((name) => (
+              <View key={name} style={styles.usedInItem}>
+                <View style={styles.usedInDot} />
+                <Text style={styles.usedInItemText}>{name}</Text>
+              </View>
+            ))
+          )}
+          <Text style={styles.usedInNote}>
+            Changing this ingredient's price in a recipe requires editing each recipe individually.
+          </Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+
+    <Modal
+      visible={!!restock}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setRestock(null)}
+    >
+      <View style={styles.confirmOverlay}>
+        <View style={styles.confirmBox}>
+          <Text style={styles.confirmTitle}>Restock {restock?.ingredient.name}</Text>
+          <Text style={styles.confirmMessage}>
+            Currently {restock ? formatQty(restock.ingredient.current_stock) : ''} {restock?.ingredient.unit}. How much did you add?
+          </Text>
+          <View style={styles.restockInputRow}>
+            <TextInput
+              style={styles.restockInput}
+              placeholder="0"
+              placeholderTextColor="#999"
+              keyboardType="numeric"
+              autoFocus
+              value={restock?.amount}
+              onChangeText={(text) =>
+                restock && setRestock({ ...restock, amount: text, error: '' })
+              }
+            />
+            <Text style={styles.restockUnit}>{restock?.ingredient.unit}</Text>
+          </View>
+          {!!restock?.error && (
+            <Text style={styles.restockError}>{restock.error}</Text>
+          )}
+          <View style={styles.confirmButtons}>
+            <TouchableOpacity style={styles.confirmCancel} onPress={() => setRestock(null)}>
+              <Text style={styles.confirmCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.confirmAction, styles.restockConfirmAction]}
+              onPress={handleRestockSave}
+              disabled={restock?.saving}
+            >
+              <Text style={styles.confirmActionText}>
+                {restock?.saving ? 'Saving...' : 'Add Stock'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
     </View>
   );
+}
+
+// Formats numbers cleanly: 251.0 → 251, 1.5 → 1.5
+function formatQty(n: number): string {
+  return n % 1 === 0 ? n.toString() : n.toFixed(1);
 }
 
 const styles = StyleSheet.create({
@@ -298,14 +498,112 @@ const styles = StyleSheet.create({
     padding: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   cardLeft: {
     flex: 1,
   },
   cardRight: {
+    alignItems: 'flex-end',
+    alignSelf: 'center',
+    gap: 8,
+  },
+  iconRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  statusBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  statusBadgeOut: {
+    backgroundColor: '#FDEDEC',
+  },
+  statusTextOut: {
+    color: Colors.error,
+  },
+  statusBadgeLow: {
+    backgroundColor: '#fff3e0',
+  },
+  statusTextLow: {
+    color: '#E07B39',
+  },
+  statusBadgeIn: {
+    backgroundColor: '#EAFAF1',
+  },
+  statusTextIn: {
+    color: Colors.success,
+  },
+  qtyRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+  },
+  qtyValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  recipeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  recipeText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textDecorationLine: 'underline',
+  },
+  usedInBox: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxHeight: '70%',
+  },
+  usedInHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  usedInSubtitle: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginBottom: 14,
+  },
+  usedInItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF8ED',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  usedInDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E07B39',
+  },
+  usedInItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  usedInNote: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 8,
+    lineHeight: 16,
   },
   lowStockBadge: {
     backgroundColor: '#fff3e0',
@@ -402,6 +700,36 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: Colors.error,
     alignItems: 'center',
+  },
+  restockConfirmAction: {
+    backgroundColor: Colors.success,
+  },
+  restockInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  restockInput: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    paddingVertical: 12,
+  },
+  restockUnit: {
+    fontSize: 15,
+    color: Colors.textMuted,
+    marginLeft: 8,
+  },
+  restockError: {
+    fontSize: 13,
+    color: Colors.error,
+    marginBottom: 12,
   },
   confirmActionText: {
     fontSize: 15,

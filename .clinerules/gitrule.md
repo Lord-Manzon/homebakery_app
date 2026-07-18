@@ -1,0 +1,1 @@
+When I ask you to commit or push code, do not modify any source files. Only perform Git operations (stage, commit, push, or related Git commands). If a commit cannot be completed due to errors or conflicts, explain the issue instead of changing my code.

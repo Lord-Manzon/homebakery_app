@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import FAB from '../../components/common/FAB';
 import { Colors } from '../../constants/theme';
-import { getOrderItemsSummary, getOrders, groupOrdersByDate, updateOrderStatus, updatePaymentStatus } from '../../services/orders';
+import { deleteOrder, getOrderItemsSummary, getOrders, groupOrdersByDate, updateOrderStatus, updatePaymentStatus } from '../../services/orders';
 import { Order } from '../../types';
 
 type TabType = 'active' | 'completed' | 'cancelled';
@@ -91,6 +91,20 @@ export default function OrdersScreen() {
       destructive: true,
       onConfirm: async () => {
         await updateOrderStatus(order.id, 'cancelled');
+        setConfirm(null);
+        await load(activeTab);
+      },
+    });
+  }
+
+  function handleDelete(order: Order) {
+    setConfirm({
+      title: 'Delete Order',
+      message: `Permanently delete ${order.customer_name}'s order? This cannot be undone.`,
+      actionLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        await deleteOrder(order.id);
         setConfirm(null);
         await load(activeTab);
       },
@@ -292,6 +306,20 @@ export default function OrdersScreen() {
                     }}
                   >
                     <Text style={styles.actionButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {(activeTab === 'completed' || activeTab === 'cancelled') && (
+                <View style={styles.cardActions}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.actionCancel]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item);
+                    }}
+                  >
+                    <Text style={styles.actionButtonText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               )}

@@ -63,6 +63,63 @@ export async function deleteIngredient(id: string): Promise<boolean> {
   return true;
 }
 
+// Batched lookup: for a list of ingredient IDs, returns how many distinct
+// recipes (products) use each one. Used to show "Used in 3 recipes" on the
+// Inventory card without firing one query per ingredient.
+export async function getIngredientRecipeCounts(
+  ingredientIds: string[]
+): Promise<Record<string, number>> {
+  if (ingredientIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('recipe_ingredients')
+    .select('ingredient_id, product_id')
+    .in('ingredient_id', ingredientIds);
+
+  if (error) {
+    console.error('Error fetching recipe counts:', error.message);
+    return {};
+  }
+
+  const productsByIngredient: Record<string, Set<string>> = {};
+  (data ?? []).forEach((row) => {
+    if (!productsByIngredient[row.ingredient_id]) {
+      productsByIngredient[row.ingredient_id] = new Set();
+    }
+    productsByIngredient[row.ingredient_id].add(row.product_id);
+  });
+
+  const counts: Record<string, number> = {};
+  Object.entries(productsByIngredient).forEach(([ingredientId, productIds]) => {
+    counts[ingredientId] = productIds.size;
+  });
+
+  return counts;
+}
+
+// For the "Used In" popup: returns the distinct product names that use a
+// single ingredient. Fetched on-demand when the user taps the recipe count,
+// rather than upfront for every ingredient.
+export async function getProductsUsingIngredient(
+  ingredientId: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('recipe_ingredients')
+    .select('products(name)')
+    .eq('ingredient_id', ingredientId);
+
+  if (error) {
+    console.error('Error fetching products using ingredient:', error.message);
+    return [];
+  }
+
+  const names = (data ?? [])
+    .map((row: any) => row.products?.name)
+    .filter((name: string | undefined): name is string => !!name);
+
+  return Array.from(new Set(names));
+}
+
 export async function adjustStock(
   id: string,
   newStock: number,

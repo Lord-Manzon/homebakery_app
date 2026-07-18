@@ -80,6 +80,33 @@ export async function createOrder(
   return orderData;
 }
 
+// Permanently deletes an order and its items. Only intended for use on
+// completed/cancelled orders — active orders should be cancelled instead,
+// not deleted, so they remain visible in the Cancelled tab for record-keeping.
+export async function deleteOrder(id: string): Promise<boolean> {
+  const { error: itemsError } = await supabase
+    .from('order_items')
+    .delete()
+    .eq('order_id', id);
+
+  if (itemsError) {
+    console.error('Error deleting order items:', itemsError.message);
+    return false;
+  }
+
+  const { error: orderError } = await supabase
+    .from('orders')
+    .delete()
+    .eq('id', id);
+
+  if (orderError) {
+    console.error('Error deleting order:', orderError.message);
+    return false;
+  }
+
+  return true;
+}
+
 export async function updateOrderStatus(
   id: string,
   status: 'active' | 'completed' | 'cancelled'

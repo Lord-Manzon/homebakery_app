@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/theme';
 import {
+  deleteOrder,
   getOrderById,
   getOrderItems,
   updateOrderStatus,
@@ -137,6 +138,20 @@ export default function OrderDetailModal() {
       destructive: true,
       onConfirm: async () => {
         await updateOrderStatus(id, 'cancelled');
+        setConfirm(null);
+        router.dismiss();
+      },
+    });
+  }
+
+  function handleDelete() {
+    setConfirm({
+      title: 'Delete Order',
+      message: 'Permanently delete this order? This cannot be undone.',
+      actionLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        await deleteOrder(id);
         setConfirm(null);
         router.dismiss();
       },
@@ -307,6 +322,21 @@ export default function OrderDetailModal() {
               </Text>
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {order.order_status !== 'active' && (
+        <View style={styles.actionsCard}>
+          <Text style={styles.sectionTitle}>Actions</Text>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionCancel]}
+            onPress={handleDelete}
+          >
+            <Ionicons name="trash-outline" size={18} color={Colors.error} />
+            <Text style={[styles.actionText, { color: Colors.error }]}>
+              Delete Order
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 
