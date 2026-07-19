@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,17 +20,19 @@ export default function AddVariantModal() {
   const [sellingPrice, setSellingPrice] = useState('');
   const [packaging, setPackaging] = useState('');
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function handleSave() {
-    if (!name.trim()) {
-      Alert.alert('Validation Error', 'Variant name is required.');
-      return;
-    }
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) newErrors.name = 'Variant name is required.';
     if (!sellingPrice || parseFloat(sellingPrice) < 0) {
-      Alert.alert('Validation Error', 'Please enter a valid selling price.');
+      newErrors.sellingPrice = 'Please enter a valid selling price.';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-
+    setErrors({});
     setSaving(true);
 
     const result = await addVariant({
@@ -47,7 +48,7 @@ export default function AddVariantModal() {
     if (result) {
       router.back();
     } else {
-      Alert.alert('Error', 'Failed to save variant. Please try again.');
+      setErrors({ general: 'Failed to save variant. Please try again.' });
     }
   }
 
@@ -62,12 +63,13 @@ export default function AddVariantModal() {
         </Text>
         <Text style={styles.hint}>e.g. Single, Box of 4, Small, Large</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.name ? styles.inputError : null]}
           placeholder="e.g. Box of 6"
           placeholderTextColor={Colors.textMuted}
           value={name}
-          onChangeText={setName}
+          onChangeText={(t) => { setName(t); setErrors((e) => ({ ...e, name: '' })); }}
         />
+        {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
       </View>
 
       {/* Selling Price */}
@@ -76,13 +78,14 @@ export default function AddVariantModal() {
           Selling Price <Text style={styles.required}>*</Text>
         </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.sellingPrice ? styles.inputError : null]}
           placeholder="0.00"
           placeholderTextColor={Colors.textMuted}
           value={sellingPrice}
-          onChangeText={setSellingPrice}
+          onChangeText={(t) => { setSellingPrice(t); setErrors((e) => ({ ...e, sellingPrice: '' })); }}
           keyboardType="numeric"
         />
+        {errors.sellingPrice ? <Text style={styles.errorText}>{errors.sellingPrice}</Text> : null}
       </View>
 
       {/* Packaging */}
@@ -97,6 +100,8 @@ export default function AddVariantModal() {
           onChangeText={setPackaging}
         />
       </View>
+
+      {errors.general ? <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 8 }]}>{errors.general}</Text> : null}
 
       {/* Save Button */}
       <TouchableOpacity
@@ -165,5 +170,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  inputError: {
+    borderColor: Colors.error,
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: Colors.error,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });
