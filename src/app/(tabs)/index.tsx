@@ -167,6 +167,15 @@ export default function DashboardScreen() {
         <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={styles.quickAction}
+        activeOpacity={0.8}
+        onPress={() => router.push('/modals/expenses')}
+      >
+        <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
+        <Text style={styles.quickActionText}>Log expense</Text>
+      </TouchableOpacity>
+
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -319,5 +328,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.textPrimary,
     marginRight: 4,
+  },
+  quickAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 14,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });
