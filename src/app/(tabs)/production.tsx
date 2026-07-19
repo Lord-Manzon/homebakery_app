@@ -121,10 +121,13 @@ export default function ProductionScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+  contentContainerStyle={
+    hasNoOrders ? { flexGrow: 1 } : undefined
+  }
+  refreshControl={
+    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+  }
+>
         {hasNoOrders ? (
           <View style={styles.centered}>
             <Ionicons name="flame-outline" size={48} color="#ddd" />
@@ -343,7 +346,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
+    
     paddingHorizontal: 32,
   },
   summaryRow: { flexDirection: 'row', margin: 16, gap: 10 },
