@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,6 +31,7 @@ export default function AddRecipeIngredientModal() {
   const [unitUsed, setUnitUsed] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
@@ -52,35 +52,30 @@ export default function AddRecipeIngredientModal() {
     setPurchasedUnit(ingredient.unit);
     setUnitUsed(ingredient.unit);
     setShowDropdown(false);
+    setErrors((e) => ({ ...e, ingredient: '', purchasedUnit: '', unitUsed: '' }));
   }
 
   async function handleSave() {
-    if (!selectedIngredient) {
-      Alert.alert('Validation Error', 'Please select an ingredient.');
-      return;
-    }
+    const newErrors: Record<string, string> = {};
+    if (!selectedIngredient) newErrors.ingredient = 'Please select an ingredient.';
     if (!purchasedQuantity || parseFloat(purchasedQuantity) <= 0) {
-      Alert.alert('Validation Error', 'Please enter the purchased quantity.');
-      return;
+      newErrors.purchasedQuantity = 'Please enter the purchased quantity.';
     }
-    if (!purchasedUnit.trim()) {
-      Alert.alert('Validation Error', 'Please select the purchased unit.');
-      return;
-    }
+    if (!purchasedUnit.trim()) newErrors.purchasedUnit = 'Please select the purchased unit.';
     if (!quantityUsed || parseFloat(quantityUsed) <= 0) {
-      Alert.alert('Validation Error', 'Please enter the quantity used.');
+      newErrors.quantityUsed = 'Please enter the quantity used.';
+    }
+    if (!unitUsed.trim()) newErrors.unitUsed = 'Please select the unit used.';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    if (!unitUsed.trim()) {
-      Alert.alert('Validation Error', 'Please select the unit used.');
-      return;
-    }
-
+    setErrors({});
     setSaving(true);
 
     const result = await addRecipeIngredient({
       product_id,
-      ingredient_id: selectedIngredient.id,
+      ingredient_id: selectedIngredient!.id,
       purchased_quantity: parseFloat(purchasedQuantity),
       purchased_unit: purchasedUnit.trim(),
       quantity_used: parseFloat(quantityUsed),
@@ -92,7 +87,7 @@ export default function AddRecipeIngredientModal() {
     if (result) {
       router.back();
     } else {
-      Alert.alert('Error', 'Failed to save recipe ingredient.');
+      setErrors({ general: 'Failed to save recipe ingredient.' });
     }
   }
 
@@ -116,7 +111,7 @@ export default function AddRecipeIngredientModal() {
           Ingredient <Text style={styles.required}>*</Text>
         </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.ingredient ? styles.inputError : null]}
           placeholder="Search ingredient..."
           placeholderTextColor={Colors.textMuted}
           value={search}
@@ -124,6 +119,7 @@ export default function AddRecipeIngredientModal() {
             setSearch(text);
             setSelectedIngredient(null);
             setShowDropdown(true);
+            setErrors((e) => ({ ...e, ingredient: '' }));
           }}
           onFocus={() => setShowDropdown(true)}
         />
@@ -149,6 +145,7 @@ export default function AddRecipeIngredientModal() {
             </Text>
           </View>
         )}
+        {errors.ingredient ? <Text style={styles.errorText}>{errors.ingredient}</Text> : null}
       </View>
 
       {/* Info Box */}
@@ -167,13 +164,14 @@ export default function AddRecipeIngredientModal() {
             Quantity <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, errors.purchasedQuantity ? styles.inputError : null]}
             placeholder="e.g. 1"
             placeholderTextColor={Colors.textMuted}
             value={purchasedQuantity}
-            onChangeText={setPurchasedQuantity}
+            onChangeText={(t) => { setPurchasedQuantity(t); setErrors((e) => ({ ...e, purchasedQuantity: '' })); }}
             keyboardType="numeric"
           />
+          {errors.purchasedQuantity ? <Text style={styles.errorText}>{errors.purchasedQuantity}</Text> : null}
         </View>
         <View style={[styles.section, { flex: 1 }]}>
           <Text style={styles.label}>
@@ -185,7 +183,7 @@ export default function AddRecipeIngredientModal() {
                 <TouchableOpacity
                   key={u}
                   style={[styles.chip, purchasedUnit === u && styles.chipSelected]}
-                  onPress={() => setPurchasedUnit(u)}
+                  onPress={() => { setPurchasedUnit(u); setErrors((e) => ({ ...e, purchasedUnit: '' })); }}
                 >
                   <Text style={[styles.chipText, purchasedUnit === u && styles.chipTextSelected]}>
                     {u}
@@ -194,6 +192,7 @@ export default function AddRecipeIngredientModal() {
               ))}
             </View>
           </ScrollView>
+          {errors.purchasedUnit ? <Text style={styles.errorText}>{errors.purchasedUnit}</Text> : null}
         </View>
       </View>
 
@@ -205,13 +204,14 @@ export default function AddRecipeIngredientModal() {
             Quantity <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, errors.quantityUsed ? styles.inputError : null]}
             placeholder="e.g. 250"
             placeholderTextColor={Colors.textMuted}
             value={quantityUsed}
-            onChangeText={setQuantityUsed}
+            onChangeText={(t) => { setQuantityUsed(t); setErrors((e) => ({ ...e, quantityUsed: '' })); }}
             keyboardType="numeric"
           />
+          {errors.quantityUsed ? <Text style={styles.errorText}>{errors.quantityUsed}</Text> : null}
         </View>
         <View style={[styles.section, { flex: 1 }]}>
           <Text style={styles.label}>
@@ -223,7 +223,7 @@ export default function AddRecipeIngredientModal() {
                 <TouchableOpacity
                   key={u}
                   style={[styles.chip, unitUsed === u && styles.chipSelected]}
-                  onPress={() => setUnitUsed(u)}
+                  onPress={() => { setUnitUsed(u); setErrors((e) => ({ ...e, unitUsed: '' })); }}
                 >
                   <Text style={[styles.chipText, unitUsed === u && styles.chipTextSelected]}>
                     {u}
@@ -232,8 +232,11 @@ export default function AddRecipeIngredientModal() {
               ))}
             </View>
           </ScrollView>
+          {errors.unitUsed ? <Text style={styles.errorText}>{errors.unitUsed}</Text> : null}
         </View>
       </View>
+
+      {errors.general ? <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 8 }]}>{errors.general}</Text> : null}
 
       {/* Save Button */}
       <TouchableOpacity
@@ -384,5 +387,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  inputError: {
+    borderColor: Colors.error,
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: Colors.error,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });

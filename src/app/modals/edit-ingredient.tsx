@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,17 +27,17 @@ export default function EditIngredientModal() {
   const [averageCost, setAverageCost] = useState(params.average_cost as string ?? '0');
   const [notes, setNotes] = useState(params.notes as string ?? '');
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function handleSave() {
-    if (!name.trim()) {
-      Alert.alert('Validation Error', 'Ingredient name is required.');
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) newErrors.name = 'Ingredient name is required.';
+    if (!unit.trim()) newErrors.unit = 'Unit is required.';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    if (!unit.trim()) {
-      Alert.alert('Validation Error', 'Unit is required.');
-      return;
-    }
-
+    setErrors({});
     setSaving(true);
 
     const success = await updateIngredient(params.id as string, {
@@ -56,7 +55,7 @@ export default function EditIngredientModal() {
     if (success) {
       router.back();
     } else {
-      Alert.alert('Error', 'Failed to update ingredient. Please try again.');
+      setErrors({ general: 'Failed to update ingredient. Please try again.' });
     }
   }
 
@@ -69,12 +68,13 @@ export default function EditIngredientModal() {
           Ingredient Name <Text style={styles.required}>*</Text>
         </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.name ? styles.inputError : null]}
           placeholder="e.g. All Purpose Flour"
           placeholderTextColor={Colors.textMuted}
           value={name}
-          onChangeText={setName}
+          onChangeText={(t) => { setName(t); setErrors((e) => ({ ...e, name: '' })); }}
         />
+        {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
       </View>
 
       {/* Category */}
@@ -108,7 +108,7 @@ export default function EditIngredientModal() {
               <TouchableOpacity
                 key={u}
                 style={[styles.chip, unit === u && styles.chipSelected]}
-                onPress={() => setUnit(unit === u ? '' : u)}
+                onPress={() => { setUnit(unit === u ? '' : u); setErrors((e) => ({ ...e, unit: '' })); }}
               >
                 <Text style={[styles.chipText, unit === u && styles.chipTextSelected]}>
                   {u}
@@ -117,6 +117,7 @@ export default function EditIngredientModal() {
             ))}
           </View>
         </ScrollView>
+        {errors.unit ? <Text style={styles.errorText}>{errors.unit}</Text> : null}
       </View>
 
       {/* Stock & Threshold */}
@@ -171,6 +172,8 @@ export default function EditIngredientModal() {
           numberOfLines={3}
         />
       </View>
+
+      {errors.general ? <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 8 }]}>{errors.general}</Text> : null}
 
       {/* Save Button */}
       <TouchableOpacity
@@ -266,5 +269,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  inputError: {
+    borderColor: Colors.error,
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: Colors.error,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });
