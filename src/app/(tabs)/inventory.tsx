@@ -908,6 +908,7 @@ const styles = StyleSheet.create({
   },
   restockInput: {
     flex: 1,
+    minWidth: 0,
     fontSize: 20,
     fontWeight: '700',
     color: '#1a1a1a',
