@@ -70,7 +70,7 @@ export async function getMonthIndicators(
   const [ordersResult, expensesResult] = await Promise.all([
     supabase
       .from('orders')
-      .select('delivery_date, total_amount, order_status')
+      .select('delivery_date, total_amount, order_status, payment_status')
       .gte('delivery_date', monthStart)
       .lte('delivery_date', monthEnd),
 
@@ -91,8 +91,13 @@ export async function getMonthIndicators(
     if (!o.delivery_date) return;
     if (!dayMap[o.delivery_date]) dayMap[o.delivery_date] = { revenue: 0, expenses: 0, deliveries: 0 };
     if (o.order_status === 'completed') {
-      dayMap[o.delivery_date].revenue += o.total_amount ?? 0;
+      // Deliveries count every completed order — delivery is an operational
+      // fact independent of whether payment was collected yet.
       dayMap[o.delivery_date].deliveries += 1;
+      // Revenue only counts orders that have actually been paid.
+      if (o.payment_status === 'paid') {
+        dayMap[o.delivery_date].revenue += o.total_amount ?? 0;
+      }
     }
   });
 
@@ -124,7 +129,7 @@ export async function getPeriodSummary(
   const [ordersResult, expensesResult, itemsResult] = await Promise.all([
     supabase
       .from('orders')
-      .select('total_amount, order_status')
+      .select('total_amount, order_status, payment_status')
       .gte('delivery_date', startDate)
       .lte('delivery_date', endDate)
       .eq('order_status', 'completed'),
@@ -147,9 +152,13 @@ export async function getPeriodSummary(
   const expenses = expensesResult.data ?? [];
   const items = itemsResult.data ?? [];
 
-  const revenue = orders.reduce((sum, o) => sum + (o.total_amount ?? 0), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount ?? 0), 0);
+  // Orders Delivered is operational — every completed order counts,
+  // paid or not. Revenue is financial — only paid orders count toward it.
   const ordersDelivered = orders.length;
+  const revenue = orders
+    .filter((o) => o.payment_status === 'paid')
+    .reduce((sum, o) => sum + (o.total_amount ?? 0), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount ?? 0), 0);
   const productsSold = items.reduce((sum, i) => sum + (i.quantity ?? 0), 0);
   const averageOrderValue = ordersDelivered > 0 ? revenue / ordersDelivered : 0;
 
@@ -175,7 +184,7 @@ export async function getProductPerformance(
       subtotal,
       products(name),
       product_variants(name),
-      orders!inner(delivery_date, order_status)
+      orders!inner(delivery_date, order_status, payment_status)
     `)
     .gte('orders.delivery_date', startDate)
     .lte('orders.delivery_date', endDate)
@@ -204,8 +213,12 @@ export async function getProductPerformance(
       };
     }
 
+    // Quantity sold is operational — every completed order counts.
     map[key].totalQuantity += item.quantity ?? 0;
-    map[key].totalRevenue += item.subtotal ?? 0;
+    // Revenue is financial — only count it once the order is actually paid.
+    if (item.orders?.payment_status === 'paid') {
+      map[key].totalRevenue += item.subtotal ?? 0;
+    }
   });
 
   // Sort by quantity sold descending

@@ -48,11 +48,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     ingredientsResult,
     activeOrderItemsResult,
   ] = await Promise.all([
-    // All completed orders (we filter by date in JS, same pattern as getExpenseSummary)
+    // All completed AND paid orders (revenue = money actually received,
+    // not just delivered — an unpaid completed order isn't revenue yet)
     supabase
       .from('orders')
       .select('total_amount, delivery_date')
-      .eq('order_status', 'completed'),
+      .eq('order_status', 'completed')
+      .eq('payment_status', 'paid'),
 
     // All expenses
     supabase
