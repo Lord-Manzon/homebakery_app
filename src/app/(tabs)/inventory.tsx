@@ -231,6 +231,50 @@ export default function InventoryScreen() {
         </View>
       </View>
 
+      {/* Stock Alerts */}
+      {stockAlerts.length > 0 && (
+        <View style={styles.alertsCard}>
+          <View style={styles.alertsHeader}>
+            <Ionicons name="warning-outline" size={16} color={Colors.warning} />
+            <Text style={styles.alertsTitle}>
+              Stock Alerts ({stockAlerts.length})
+            </Text>
+          </View>
+
+          {visibleAlerts.map(({ ingredient, status }) => (
+            <TouchableOpacity
+              key={ingredient.id}
+              style={styles.alertRow}
+              onPress={() => openRestock(ingredient)}
+            >
+              <View
+                style={[
+                  styles.alertDot,
+                  status === 'out' ? styles.alertDotOut : styles.alertDotLow,
+                ]}
+              />
+              <Text style={styles.alertName} numberOfLines={1}>
+                {ingredient.name}
+              </Text>
+              <Text
+                style={[
+                  styles.alertStatus,
+                  status === 'out' ? styles.statusTextOut : styles.statusTextLow,
+                ]}
+              >
+                {status === 'out' ? 'OUT' : 'LOW'} · {formatQty(ingredient.current_stock)} {ingredient.unit}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {hiddenAlertCount > 0 && (
+            <Text style={styles.alertsMore}>
+              +{hiddenAlertCount} more — scroll the list below
+            </Text>
+          )}
+        </View>
+      )}
+
       {/* List */}
       <FlatList
         data={filtered}
@@ -556,6 +600,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 2,
+  },
+  alertsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+  },
+  alertsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  alertsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  alertRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+  },
+  alertDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 8,
+  },
+  alertDotOut: {
+    backgroundColor: Colors.error,
+  },
+  alertDotLow: {
+    backgroundColor: '#E07B39',
+  },
+  alertName: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1a1a1a',
+    marginRight: 8,
+  },
+  alertStatus: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  alertsMore: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 4,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: '#fff',
