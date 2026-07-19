@@ -1,4 +1,5 @@
-import { useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   RefreshControl,
@@ -42,7 +43,6 @@ export default function DashboardScreen() {
 
   const currency = settings?.currency ?? 'PHP';
 
-  // Pick the right period's numbers
   const financial = stats
     ? period === 'today'
       ? stats.today
@@ -62,6 +62,13 @@ export default function DashboardScreen() {
     );
   }
 
+  const periodLabel = period === 'today' ? 'today' : period === 'week' ? 'this week' : 'this month';
+  const todayLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -69,67 +76,96 @@ export default function DashboardScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Financial Summary Card */}
-      <View style={styles.card}>
-        {/* Period Tabs */}
-        <View style={styles.periodTabs}>
-          {(['today', 'week', 'month'] as PeriodTab[]).map((p) => (
-            <TouchableOpacity
-              key={p}
-              style={[styles.periodTab, period === p && styles.periodTabActive]}
-              onPress={() => setPeriod(p)}
-            >
-              <Text style={[
-                styles.periodTabText,
-                period === p && styles.periodTabTextActive,
-              ]}>
-                {p === 'today' ? 'Today' : p === 'week' ? 'This Week' : 'This Month'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Financial Rows */}
-        <View style={styles.financialRow}>
-          <Text style={styles.financialLabel}>Revenue</Text>
-          <Text style={styles.financialValue}>{currency} {fmt(financial.revenue)}</Text>
-        </View>
-        <View style={styles.financialRow}>
-          <Text style={styles.financialLabel}>Expenses</Text>
-          <Text style={[styles.financialValue, { color: Colors.error }]}>
-            {currency} {fmt(financial.expenses)}
-          </Text>
-        </View>
-        <View style={[styles.financialRow, styles.profitRow]}>
-          <Text style={styles.profitLabel}>Net Profit</Text>
-          <Text style={[
-            styles.profitValue,
-            { color: financial.netProfit >= 0 ? Colors.success : Colors.error },
-          ]}>
-            {currency} {fmt(financial.netProfit)}
-          </Text>
-        </View>
+      <Text style={styles.dateText}>{todayLabel}</Text>
+      <View style={styles.periodTabs}>
+        {(['today', 'week', 'month'] as PeriodTab[]).map((p) => (
+          <TouchableOpacity
+            key={p}
+            style={[styles.periodTab, period === p && styles.periodTabActive]}
+            onPress={() => setPeriod(p)}
+          >
+            <Text style={[
+              styles.periodTabText,
+              period === p && styles.periodTabTextActive,
+            ]}>
+              {p === 'today' ? 'Today' : p === 'week' ? 'This Week' : 'This Month'}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Quick Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats?.activeOrders ?? 0}</Text>
-          <Text style={styles.statLabel}>Active Orders</Text>
+      <TouchableOpacity
+        style={styles.heroCard}
+        activeOpacity={0.8}
+        onPress={() => router.push('/modals/reports')}
+      >
+        <Text style={styles.heroLabel}>Net profit {periodLabel}</Text>
+        <Text style={[
+          styles.heroValue,
+          { color: financial.netProfit >= 0 ? Colors.success : Colors.error },
+        ]}>
+          {currency} {fmt(financial.netProfit)}
+        </Text>
+        <View style={styles.heroDivider} />
+        <View style={styles.heroSplitRow}>
+          <View style={styles.heroSplitItem}>
+            <Ionicons name="cash-outline" size={15} color={Colors.textSecondary} />
+            <Text style={styles.heroSplitLabel}>Revenue</Text>
+            <Text style={styles.heroSplitValue}>{fmt(financial.revenue)}</Text>
+          </View>
+          <View style={styles.heroSplitDivider} />
+          <View style={styles.heroSplitItem}>
+            <Ionicons name="receipt-outline" size={15} color={Colors.textSecondary} />
+            <Text style={styles.heroSplitLabel}>Expenses</Text>
+            <Text style={styles.heroSplitValue}>{fmt(financial.expenses)}</Text>
+          </View>
         </View>
-        <View style={styles.statCard}>
+        <View style={styles.heroTapHint}>
+          <Text style={styles.heroTapHintText}>View full reports</Text>
+          <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+        </View>
+      </TouchableOpacity>
+
+      <View style={styles.statsGrid}>
+        <TouchableOpacity
+          style={styles.statCard}
+          activeOpacity={0.8}
+          onPress={() => router.push('/(tabs)/orders' as any)}
+        >
+          <View style={[styles.statIconWrap, { backgroundColor: '#FAECE7' }]}>
+            <Ionicons name="clipboard-outline" size={18} color="#993C1D" />
+          </View>
+          <Text style={styles.statNumber}>{stats?.activeOrders ?? 0}</Text>
+          <Text style={styles.statLabel}>Active orders</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.statCard}
+          activeOpacity={0.8}
+          onPress={() => router.push('/(tabs)/inventory' as any)}
+        >
+          <View style={[styles.statIconWrap, { backgroundColor: '#FFF3E0' }]}>
+            <Ionicons name="alert-circle-outline" size={18} color={Colors.warning} />
+          </View>
           <Text style={[styles.statNumber, { color: Colors.warning }]}>
             {stats?.lowStockCount ?? 0}
           </Text>
-          <Text style={styles.statLabel}>Low Stock</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: Colors.primary }]}>
-            {stats?.productionCount ?? 0}
-          </Text>
-          <Text style={styles.statLabel}>Production</Text>
-        </View>
+          <Text style={styles.statLabel}>Low stock</Text>
+        </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.productionRow}
+        activeOpacity={0.8}
+        onPress={() => router.push('/(tabs)/production' as any)}
+      >
+        <View style={[styles.statIconWrap, { backgroundColor: '#FAEEDA' }]}>
+          <Ionicons name="flame-outline" size={18} color="#854F0B" />
+        </View>
+        <Text style={styles.productionLabel}>In production</Text>
+        <Text style={styles.productionValue}>{stats?.productionCount ?? 0}</Text>
+        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+      </TouchableOpacity>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -140,23 +176,25 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontSize: 16, color: Colors.textMuted },
-  card: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    margin: 16,
-    padding: 16,
+
+  dateText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
   },
   periodTabs: {
     flexDirection: 'row',
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.card,
     borderRadius: 10,
     padding: 4,
-    marginBottom: 16,
+    marginHorizontal: 16,
     gap: 4,
   },
   periodTab: {
     flex: 1,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -171,56 +209,115 @@ const styles = StyleSheet.create({
   periodTabTextActive: {
     color: '#fff',
   },
-  financialRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+
+  heroCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    margin: 16,
+    marginTop: 12,
+    padding: 20,
+    alignItems: 'center',
   },
-  financialLabel: {
-    fontSize: 15,
+  heroLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  heroValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  heroDivider: {
+    width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  heroSplitRow: {
+    flexDirection: 'row',
+    width: '100%',
+    paddingTop: 12,
+  },
+  heroSplitItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  heroSplitDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+  },
+  heroSplitLabel: {
+    fontSize: 13,
     color: Colors.textSecondary,
   },
-  financialValue: {
-    fontSize: 15,
+  heroSplitValue: {
+    fontSize: 13,
     fontWeight: '600',
     color: Colors.textPrimary,
   },
-  profitRow: {
-    borderBottomWidth: 0,
-    marginTop: 4,
+  heroTapHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 14,
   },
-  profitLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textPrimary,
+  heroTapHintText: {
+    fontSize: 12,
+    color: Colors.textMuted,
   },
-  profitValue: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  statsRow: {
+
+  statsGrid: {
     flexDirection: 'row',
     marginHorizontal: 16,
     gap: 10,
+    marginBottom: 10,
   },
   statCard: {
     flex: 1,
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 14,
+  },
+  statIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     color: Colors.textPrimary,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textMuted,
-    marginTop: 4,
-    textAlign: 'center',
+    marginTop: 2,
+  },
+
+  productionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 14,
+  },
+  productionLabel: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+    flex: 1,
+  },
+  productionValue: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginRight: 4,
   },
 });
