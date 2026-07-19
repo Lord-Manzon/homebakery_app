@@ -66,6 +66,16 @@ export default function InventoryScreen() {
     setRestock({ ingredient, amount: '', error: '', saving: false });
   }
 
+  function handleRestockStep(direction: 1 | -1) {
+    if (!restock) return;
+    const { step } = getRestockConfig(restock.ingredient.unit);
+    const current = parseFloat(restock.amount) || 0;
+    const next = Math.max(0, current + step * direction);
+    // Round to avoid floating point artifacts like 0.30000000000000004
+    const rounded = Math.round(next * 100) / 100;
+    setRestock({ ...restock, amount: rounded === 0 ? '' : formatQty(rounded), error: '' });
+  }
+
   async function handleRestockSave() {
     if (!restock) return;
 
@@ -165,6 +175,19 @@ export default function InventoryScreen() {
       textStyle: styles.statusTextIn,
     },
   };
+
+  // Ingredients that are Low or Out of Stock, worst-first then alphabetical.
+  // Recomputed from `ingredients` on every render — cheap, no extra fetch.
+  const MAX_ALERTS_SHOWN = 5;
+  const stockAlerts = ingredients
+    .map((ingredient) => ({ ingredient, status: getStockStatus(ingredient) }))
+    .filter((a) => a.status !== 'in')
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'out' ? -1 : 1;
+      return a.ingredient.name.localeCompare(b.ingredient.name);
+    });
+  const visibleAlerts = stockAlerts.slice(0, MAX_ALERTS_SHOWN);
+  const hiddenAlertCount = stockAlerts.length - visibleAlerts.length;
 
   if (loading) {
     return (
@@ -374,6 +397,12 @@ export default function InventoryScreen() {
             Currently {restock ? formatQty(restock.ingredient.current_stock) : ''} {restock?.ingredient.unit}. How much did you add?
           </Text>
           <View style={styles.restockInputRow}>
+            <TouchableOpacity
+              style={styles.restockStepButton}
+              onPress={() => handleRestockStep(-1)}
+            >
+              <Ionicons name="remove" size={20} color={Colors.textPrimary} />
+            </TouchableOpacity>
             <TextInput
               style={styles.restockInput}
               placeholder="0"
@@ -386,7 +415,28 @@ export default function InventoryScreen() {
               }
             />
             <Text style={styles.restockUnit}>{restock?.ingredient.unit}</Text>
+            <TouchableOpacity
+              style={styles.restockStepButton}
+              onPress={() => handleRestockStep(1)}
+            >
+              <Ionicons name="add" size={20} color={Colors.textPrimary} />
+            </TouchableOpacity>
           </View>
+          {restock && (
+            <View style={styles.restockPresetRow}>
+              {getRestockConfig(restock.ingredient.unit).presets.map((preset) => (
+                <TouchableOpacity
+                  key={preset}
+                  style={styles.restockPresetChip}
+                  onPress={() =>
+                    setRestock({ ...restock, amount: String(preset), error: '' })
+                  }
+                >
+                  <Text style={styles.restockPresetText}>{formatQty(preset)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
           {!!restock?.error && (
             <Text style={styles.restockError}>{restock.error}</Text>
           )}
@@ -414,6 +464,23 @@ export default function InventoryScreen() {
 // Formats numbers cleanly: 251.0 → 251, 1.5 → 1.5
 function formatQty(n: number): string {
   return n % 1 === 0 ? n.toString() : n.toFixed(1);
+}
+
+// Preset quick-add amounts and the fine-tune step size, scaled to how the
+// ingredient is actually measured. 250g of butter is normal; 250 eggs isn't.
+function getRestockConfig(unit: string): { presets: number[]; step: number } {
+  switch (unit) {
+    case 'g':
+    case 'ml':
+      return { presets: [50, 100, 150, 200, 250], step: 10 };
+    case 'kg':
+    case 'L':
+      return { presets: [0.5, 1, 2, 5, 10], step: 0.5 };
+    case 'pcs':
+      return { presets: [6, 12, 24], step: 1 };
+    default:
+      return { presets: [1, 5, 10, 20], step: 1 };
+  }
 }
 
 const styles = StyleSheet.create({
@@ -704,9 +771,37 @@ const styles = StyleSheet.create({
   restockConfirmAction: {
     backgroundColor: Colors.success,
   },
+  restockStepButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  restockPresetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  restockPresetChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#FFF3E0',
+  },
+  restockPresetText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#E07B39',
+  },
   restockInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
     backgroundColor: Colors.background,
     borderRadius: 10,
     borderWidth: 1,
