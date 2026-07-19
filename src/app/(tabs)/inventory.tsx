@@ -62,6 +62,22 @@ export default function InventoryScreen() {
     setUsedIn({ ingredientName: ingredient.name, products, loading: false });
   }
 
+  function openEditIngredient(ingredient: Ingredient) {
+    router.push({
+      pathname: '/modals/edit-ingredient',
+      params: {
+        id: ingredient.id,
+        name: ingredient.name,
+        category: ingredient.category ?? '',
+        unit: ingredient.unit,
+        current_stock: ingredient.current_stock.toString(),
+        low_stock_threshold: ingredient.low_stock_threshold.toString(),
+        average_cost: ingredient.average_cost?.toString() ?? '0',
+        notes: ingredient.notes ?? '',
+      },
+    });
+  }
+
   function openRestock(ingredient: Ingredient) {
     setRestock({ ingredient, amount: '', error: '', saving: false });
   }
@@ -297,7 +313,11 @@ export default function InventoryScreen() {
           const count = recipeCounts[item.id] ?? 0;
 
           return (
-            <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.7}
+              onPress={() => openEditIngredient(item)}
+            >
               <View style={styles.cardLeft}>
                 <Text style={styles.ingredientName}>{item.name}</Text>
 
@@ -361,7 +381,7 @@ export default function InventoryScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
         
@@ -453,7 +473,7 @@ export default function InventoryScreen() {
               placeholderTextColor="#999"
               keyboardType="numeric"
               autoFocus
-              value={restock?.amount}
+              value={restock?.amount ?? ''}
               onChangeText={(text) =>
                 restock && setRestock({ ...restock, amount: text, error: '' })
               }

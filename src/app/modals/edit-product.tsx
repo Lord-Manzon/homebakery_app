@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,6 +31,7 @@ export default function EditProductModal() {
   const [markupPercent, setMarkupPercent] = useState('0');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
@@ -51,15 +51,16 @@ export default function EditProductModal() {
   }, [id]);
 
   async function handleSave() {
-    if (!name.trim()) {
-      Alert.alert('Validation Error', 'Product name is required.');
-      return;
-    }
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) newErrors.name = 'Product name is required.';
     if (!yieldAmount || parseFloat(yieldAmount) <= 0) {
-      Alert.alert('Validation Error', 'Yield must be greater than 0.');
+      newErrors.yieldAmount = 'Yield must be greater than 0.';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-
+    setErrors({});
     setSaving(true);
 
     const success = await updateProduct(id, {
@@ -77,7 +78,7 @@ export default function EditProductModal() {
     if (success) {
       router.back();
     } else {
-      Alert.alert('Error', 'Failed to update product. Please try again.');
+      setErrors({ general: 'Failed to update product. Please try again.' });
     }
   }
 
@@ -98,12 +99,13 @@ export default function EditProductModal() {
           Product Name <Text style={styles.required}>*</Text>
         </Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.name ? styles.inputError : null]}
           placeholder="e.g. Cinnamon Roll"
           placeholderTextColor={Colors.textMuted}
           value={name}
-          onChangeText={setName}
+          onChangeText={(t) => { setName(t); setErrors((e) => ({ ...e, name: '' })); }}
         />
+        {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
       </View>
 
       {/* Category */}
@@ -161,13 +163,14 @@ export default function EditProductModal() {
         </Text>
         <Text style={styles.hint}>How many pieces does this recipe produce?</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, errors.yieldAmount ? styles.inputError : null]}
           placeholder="e.g. 12"
           placeholderTextColor={Colors.textMuted}
           value={yieldAmount}
-          onChangeText={setYieldAmount}
+          onChangeText={(t) => { setYieldAmount(t); setErrors((e) => ({ ...e, yieldAmount: '' })); }}
           keyboardType="numeric"
         />
+        {errors.yieldAmount ? <Text style={styles.errorText}>{errors.yieldAmount}</Text> : null}
       </View>
 
       {/* Buffer & Markup */}
@@ -197,6 +200,8 @@ export default function EditProductModal() {
           />
         </View>
       </View>
+
+      {errors.general ? <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 8 }]}>{errors.general}</Text> : null}
 
       {/* Save Button */}
       <TouchableOpacity
@@ -302,5 +307,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  inputError: {
+    borderColor: Colors.error,
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: Colors.error,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });

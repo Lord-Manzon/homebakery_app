@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -35,6 +34,8 @@ export default function SettingsModal() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [savedMessage, setSavedMessage] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -53,9 +54,10 @@ export default function SettingsModal() {
 
   async function handleSave() {
     if (!businessName.trim()) {
-      Alert.alert('Missing Info', 'Business name is required.');
+      setErrors({ businessName: 'Business name is required.' });
       return;
     }
+    setErrors({});
     setSaving(true);
     const success = await updateSettings({
       business_name: businessName.trim(),
@@ -66,9 +68,10 @@ export default function SettingsModal() {
     });
     setSaving(false);
     if (success) {
-      Alert.alert('Saved', 'Your settings have been updated.');
+      setSavedMessage(true);
+      setTimeout(() => setSavedMessage(false), 2500);
     } else {
-      Alert.alert('Error', 'Failed to save settings. Please try again.');
+      setErrors({ general: 'Failed to save settings. Please try again.' });
     }
   }
 
@@ -105,6 +108,16 @@ export default function SettingsModal() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {errors.general ? (
+          <View style={styles.banner}>
+            <Text style={styles.bannerErrorText}>{errors.general}</Text>
+          </View>
+        ) : null}
+        {savedMessage ? (
+          <View style={[styles.banner, styles.bannerSuccess]}>
+            <Text style={styles.bannerSuccessText}>Settings saved.</Text>
+          </View>
+        ) : null}
 
         {/* Business Section */}
         <Text style={styles.sectionLabel}>BUSINESS</Text>
@@ -116,13 +129,14 @@ export default function SettingsModal() {
             <View style={styles.fieldBody}>
               <Text style={styles.fieldLabel}>Business Name</Text>
               <TextInput
-                style={styles.fieldInput}
+                style={[styles.fieldInput, errors.businessName ? styles.fieldInputError : null]}
                 value={businessName}
-                onChangeText={setBusinessName}
+                onChangeText={(t) => { setBusinessName(t); setErrors((e) => ({ ...e, businessName: '' })); }}
                 placeholder="e.g. Mama's Bakery"
                 placeholderTextColor={Colors.textMuted}
                 returnKeyType="next"
               />
+              {errors.businessName ? <Text style={styles.errorText}>{errors.businessName}</Text> : null}
             </View>
           </View>
 
@@ -393,4 +407,37 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  fieldInputError: {
+    borderBottomColor: Colors.error,
+    borderBottomWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: Colors.error,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  banner: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: '#FDECEA',
+  },
+  bannerErrorText: {
+    color: Colors.error,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  bannerSuccess: {
+    backgroundColor: '#E8F5E9',
+  },
+  bannerSuccessText: {
+    color: Colors.success,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });

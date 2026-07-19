@@ -118,7 +118,23 @@ export default function ExpensesScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.7}
+            onPress={() =>
+              router.push({
+                pathname: '/modals/edit-expense',
+                params: {
+                  id: item.id,
+                  expense_type: item.expense_type,
+                  name: item.name,
+                  amount: String(item.amount),
+                  expense_date: item.expense_date,
+                  notes: item.notes ?? '',
+                },
+              })
+            }
+          >
             <View style={styles.cardLeft}>
               <Text style={styles.expenseType}>
                 {TYPE_LABELS[item.expense_type] ?? item.expense_type}
@@ -132,7 +148,7 @@ export default function ExpensesScreen() {
                 <Ionicons name="trash-outline" size={18} color={Colors.error} />
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       />
 

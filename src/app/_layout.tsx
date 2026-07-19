@@ -108,6 +108,14 @@ export default function RootLayout() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="modals/edit-expense"
+        options={{
+          presentation: 'transparentModal',
+          headerShown: false,
+          animation: 'fade',
+        }}
+      />
+      <Stack.Screen
         name="modals/reports"
         options={{ headerShown: false }}
       />

@@ -199,7 +199,17 @@ export default function ProductionScreen() {
             {/* Products to Produce */}
             <Text style={styles.sectionTitle}>Products to Produce</Text>
             {summary.productionItems.map((item) => (
-              <View key={item.product_id} style={styles.productCard}>
+              <TouchableOpacity
+                key={item.product_id}
+                style={styles.productCard}
+                activeOpacity={0.7}
+                onPress={() =>
+                  router.push({
+                    pathname: '/modals/product-detail',
+                    params: { id: item.product_id },
+                  })
+                }
+              >
                 <View style={styles.productCardHeader}>
                   <Text style={styles.productName}>{item.product_name}</Text>
                   <Text style={styles.productTotal}>
@@ -212,7 +222,7 @@ export default function ProductionScreen() {
                     <Text style={styles.variantQty}>× {variant.quantity}</Text>
                   </View>
                 ))}
-              </View>
+              </TouchableOpacity>
             ))}
 
             {/* Ingredients Required */}
@@ -231,7 +241,12 @@ export default function ProductionScreen() {
               </TouchableOpacity>
             ) : (
               summary.ingredientRequirements.map((req) => (
-                <View key={req.ingredient_id} style={styles.ingredientCard}>
+                <TouchableOpacity
+                  key={req.ingredient_id}
+                  style={styles.ingredientCard}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/(tabs)/inventory' as any)}
+                >
                   <View style={styles.ingredientLeft}>
                     <Text style={styles.ingredientName}>{req.ingredient_name}</Text>
                     <Text style={styles.ingredientDetail}>
@@ -248,7 +263,7 @@ export default function ProductionScreen() {
                       {req.sufficient ? '✓ OK' : '⚠️ Low'}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             )}
 
