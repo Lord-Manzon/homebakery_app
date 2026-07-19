@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { addExpense, addIngredientPurchaseExpense } from '../../services/expenses';
 import { getIngredients } from '../../services/ingredients';
@@ -24,6 +25,7 @@ const EXPENSE_TYPES = [
 ];
 
 export default function AddExpenseModal() {
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     prefill_ingredient_id?: string;
     prefill_ingredient_name?: string;
@@ -264,7 +266,7 @@ export default function AddExpenseModal() {
         )}
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 40 + insets.bottom }} />
     </ScrollView>
   );
 }

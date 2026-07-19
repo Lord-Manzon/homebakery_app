@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { getProductById, updateProduct } from '../../services/products';
 
@@ -19,6 +20,7 @@ const CATEGORIES = [
 ];
 
 export default function EditProductModal() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [name, setName] = useState('');
@@ -209,7 +211,7 @@ export default function EditProductModal() {
         )}
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 40 + insets.bottom }} />
     </ScrollView>
   );
 }

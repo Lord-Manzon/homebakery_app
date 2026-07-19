@@ -10,12 +10,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { getSettings } from '../../services/settings';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.72;
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   const [showSidebar, setShowSidebar] = useState(false);
   const [businessName, setBusinessName] = useState('HomeBakery');
   const slideAnim = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
@@ -173,8 +175,8 @@ export default function TabsLayout() {
           tabBarStyle: {
             backgroundColor: '#fff',
             borderTopColor: '#eee',
-            height: 60,
-            paddingBottom: 8,
+            height: 60 + insets.bottom,
+            paddingBottom: 8 + insets.bottom,
           },
           tabBarLabelStyle: {
             fontSize: 11,

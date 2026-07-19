@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { addProduct } from '../../services/products';
 
@@ -18,6 +19,7 @@ const CATEGORIES = [
 ];
 
 export default function AddProductModal() {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
@@ -195,7 +197,7 @@ export default function AddProductModal() {
         )}
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 40 + insets.bottom }} />
     </ScrollView>
   );
 }

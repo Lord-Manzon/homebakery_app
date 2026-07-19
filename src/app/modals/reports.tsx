@@ -3,7 +3,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import {
   DayIndicator,
@@ -26,6 +26,7 @@ import {
 type PeriodTab = 'today' | 'week' | 'month' | 'custom';
 
 export default function ReportsModal() {
+  const insets = useSafeAreaInsets();
   const now = new Date();
 
   const [period, setPeriod] = useState<PeriodTab>('month');
@@ -149,7 +150,7 @@ export default function ReportsModal() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="close" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
@@ -390,7 +391,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: Colors.card,
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 56 : 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
