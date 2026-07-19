@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { createOrder } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
@@ -24,6 +25,7 @@ type OrderItemDraft = {
 };
 
 export default function AddOrderModal() {
+  const insets = useSafeAreaInsets();
   const [customerName, setCustomerName] = useState('');
   const [orderType, setOrderType] = useState<'delivery' | 'pickup'>('delivery');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -129,6 +131,7 @@ export default function AddOrderModal() {
         customer_name: customerName.trim(),
         order_status: 'active',
         payment_status: paymentStatus,
+        is_delivered: false,
         order_type: orderType,
         delivery_address: orderType === 'delivery' ? deliveryAddress.trim() : null,
         delivery_fee: parseFloat(deliveryFee) || 0,
@@ -578,7 +581,7 @@ export default function AddOrderModal() {
         )}
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 40 + insets.bottom }} />
     </ScrollView>
   );
 }

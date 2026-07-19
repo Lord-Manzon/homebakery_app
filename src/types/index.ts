@@ -52,8 +52,9 @@ export type RecipeIngredient = {
 export type Order = {
   id: string;
   customer_name: string;
-  order_status: 'active' | 'completed' | 'cancelled';
+  order_status: 'active' | 'completed';
   payment_status: 'unpaid' | 'paid';
+  is_delivered: boolean;
   order_type: 'delivery' | 'pickup';
   delivery_address: string | null;
   delivery_fee: number;

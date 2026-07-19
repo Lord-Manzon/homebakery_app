@@ -16,7 +16,7 @@ import {
   deleteOrder,
   getOrderById,
   getOrderItems,
-  updateOrderStatus,
+  markDelivered,
   updatePaymentStatus,
 } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
@@ -117,29 +117,15 @@ export default function OrderDetailModal() {
     });
   }
 
-  function handleComplete() {
+  function handleMarkDelivered() {
     setConfirm({
-      title: 'Complete Order',
-      message: 'Mark this order as completed? This cannot be undone.',
-      actionLabel: 'Complete',
+      title: 'Mark as Delivered',
+      message: 'Mark this order as delivered?',
+      actionLabel: 'Mark Delivered',
       onConfirm: async () => {
-        await updateOrderStatus(id, 'completed');
+        await markDelivered(id);
         setConfirm(null);
-        router.dismiss();
-      },
-    });
-  }
-
-  function handleCancel() {
-    setConfirm({
-      title: 'Cancel Order',
-      message: 'Are you sure you want to cancel this order?',
-      actionLabel: 'Cancel Order',
-      destructive: true,
-      onConfirm: async () => {
-        await updateOrderStatus(id, 'cancelled');
-        setConfirm(null);
-        router.dismiss();
+        await load();
       },
     });
   }
@@ -201,6 +187,11 @@ export default function OrderDetailModal() {
               {order.payment_status === 'paid' ? '✓ Paid' : 'Unpaid'}
             </Text>
           </View>
+          {order.is_delivered && (
+            <View style={[styles.badge, styles.badgeDelivered]}>
+              <Text style={styles.badgeText}>🚚 Delivered</Text>
+            </View>
+          )}
           <View style={[
             styles.badge,
             order.order_status === 'active' ? styles.badgeActive : styles.badgeInactive,
@@ -303,22 +294,24 @@ export default function OrderDetailModal() {
                 </Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              style={[styles.actionButton, styles.actionComplete]}
-              onPress={handleComplete}
-            >
-              <Ionicons name="bag-check-outline" size={18} color={Colors.info} />
-              <Text style={[styles.actionText, { color: Colors.info }]}>
-                Complete
-              </Text>
-            </TouchableOpacity>
+            {!order.is_delivered && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.actionDelivered]}
+                onPress={handleMarkDelivered}
+              >
+                <Ionicons name="bag-check-outline" size={18} color={Colors.info} />
+                <Text style={[styles.actionText, { color: Colors.info }]}>
+                  Mark Delivered
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={[styles.actionButton, styles.actionCancel]}
-              onPress={handleCancel}
+              onPress={handleDelete}
             >
-              <Ionicons name="close-circle-outline" size={18} color={Colors.error} />
+              <Ionicons name="trash-outline" size={18} color={Colors.error} />
               <Text style={[styles.actionText, { color: Colors.error }]}>
-                Cancel
+                Delete
               </Text>
             </TouchableOpacity>
           </View>
@@ -429,6 +422,7 @@ const styles = StyleSheet.create({
   badgePickup: { backgroundColor: '#EAFAF1' },
   badgePaid: { backgroundColor: '#EAFAF1' },
   badgeUnpaid: { backgroundColor: '#FDEDEC' },
+  badgeDelivered: { backgroundColor: '#F4ECF7' },
   badgeActive: { backgroundColor: '#FFF3E0' },
   badgeInactive: { backgroundColor: Colors.background },
   badgeText: {
@@ -536,7 +530,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   actionPaid: { backgroundColor: '#EAFAF1' },
-  actionComplete: { backgroundColor: '#EBF5FB' },
+  actionDelivered: { backgroundColor: '#EBF5FB' },
   actionCancel: { backgroundColor: '#FDEDEC' },
   actionText: {
     fontSize: 15,

@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import FAB from '../../components/common/FAB';
 import { Colors } from '../../constants/theme';
-import { deleteOrder, getOrderItemsSummary, getOrders, groupOrdersByDate, updateOrderStatus, updatePaymentStatus } from '../../services/orders';
+import { deleteOrder, getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
 import { Order } from '../../types';
 
-type TabType = 'active' | 'completed' | 'cancelled';
+type TabType = 'active' | 'completed';
 
 export default function OrdersScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('active');
@@ -70,27 +70,13 @@ export default function OrdersScreen() {
     });
   }
 
-  function handleComplete(order: Order) {
+  function handleMarkDelivered(order: Order) {
     setConfirm({
-      title: 'Complete Order',
-      message: `Mark ${order.customer_name}'s order as completed?`,
-      actionLabel: 'Complete',
+      title: 'Mark as Delivered',
+      message: `Mark ${order.customer_name}'s order as delivered?`,
+      actionLabel: 'Mark Delivered',
       onConfirm: async () => {
-        await updateOrderStatus(order.id, 'completed');
-        setConfirm(null);
-        await load(activeTab);
-      },
-    });
-  }
-
-  function handleCancel(order: Order) {
-    setConfirm({
-      title: 'Cancel Order',
-      message: `Cancel ${order.customer_name}'s order?`,
-      actionLabel: 'Cancel Order',
-      destructive: true,
-      onConfirm: async () => {
-        await updateOrderStatus(order.id, 'cancelled');
+        await markDelivered(order.id);
         setConfirm(null);
         await load(activeTab);
       },
@@ -157,7 +143,7 @@ export default function OrdersScreen() {
 
       {/* Tabs */}
       <View style={styles.tabs}>
-        {(['active', 'completed', 'cancelled'] as TabType[]).map((tab) => (
+        {(['active', 'completed'] as TabType[]).map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, activeTab === tab && styles.tabActive]}
@@ -244,6 +230,11 @@ export default function OrdersScreen() {
                       {item.payment_status === 'paid' ? '✓ Paid' : 'Unpaid'}
                     </Text>
                   </View>
+                  {item.is_delivered && (
+                    <View style={[styles.badge, styles.badgeDelivered]}>
+                      <Text style={styles.badgeText}>🚚 Delivered</Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -289,28 +280,30 @@ export default function OrdersScreen() {
                       <Text style={styles.actionButtonText}>Mark Paid</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.actionComplete]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleComplete(item);
-                    }}
-                  >
-                    <Text style={styles.actionButtonText}>Complete</Text>
-                  </TouchableOpacity>
+                  {!item.is_delivered && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.actionDelivered]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleMarkDelivered(item);
+                      }}
+                    >
+                      <Text style={styles.actionButtonText}>Mark Delivered</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     style={[styles.actionButton, styles.actionCancel]}
                     onPress={(e) => {
                       e.stopPropagation();
-                      handleCancel(item);
+                      handleDelete(item);
                     }}
                   >
-                    <Text style={styles.actionButtonText}>Cancel</Text>
+                    <Text style={styles.actionButtonText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               )}
 
-              {(activeTab === 'completed' || activeTab === 'cancelled') && (
+              {activeTab === 'completed' && (
                 <View style={styles.cardActions}>
                   <TouchableOpacity
                     style={[styles.actionButton, styles.actionCancel]}
@@ -501,6 +494,9 @@ const styles = StyleSheet.create({
   badgeUnpaid: {
     backgroundColor: '#FDEDEC',
   },
+  badgeDelivered: {
+    backgroundColor: '#F4ECF7',
+  },
   badgeText: {
     fontSize: 11,
     fontWeight: '600',
@@ -546,7 +542,7 @@ const styles = StyleSheet.create({
   actionPaid: {
     backgroundColor: '#EAFAF1',
   },
-  actionComplete: {
+  actionDelivered: {
     backgroundColor: '#EBF5FB',
   },
   actionCancel: {

@@ -3,20 +3,21 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import {
-    getOrderById,
-    getOrderItems,
-    updateOrderWithItems,
+  getOrderById,
+  getOrderItems,
+  updateOrderWithItems,
 } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
 import { Product, ProductVariant } from '../../types';
@@ -28,6 +29,7 @@ type OrderItemDraft = {
 };
 
 export default function EditOrderModal() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [customerName, setCustomerName] = useState('');
@@ -543,7 +545,7 @@ export default function EditOrderModal() {
         {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 40 + insets.bottom }} />
     </ScrollView>
   );
 }

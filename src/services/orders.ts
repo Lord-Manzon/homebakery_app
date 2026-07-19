@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 import { Order, OrderItem } from '../types';
 
 export async function getOrders(
-  status: 'active' | 'completed' | 'cancelled'
+  status: 'active' | 'completed'
 ): Promise<Order[]> {
   const { data, error } = await supabase
     .from('orders')
@@ -80,9 +80,8 @@ export async function createOrder(
   return orderData;
 }
 
-// Permanently deletes an order and its items. Only intended for use on
-// completed/cancelled orders — active orders should be cancelled instead,
-// not deleted, so they remain visible in the Cancelled tab for record-keeping.
+// Permanently deletes an order and its items. This is now the only way to
+// remove an order from any tab — there is no separate "cancel" concept.
 export async function deleteOrder(id: string): Promise<boolean> {
   const { error: itemsError } = await supabase
     .from('order_items')
@@ -107,17 +106,18 @@ export async function deleteOrder(id: string): Promise<boolean> {
   return true;
 }
 
-export async function updateOrderStatus(
-  id: string,
-  status: 'active' | 'completed' | 'cancelled'
-): Promise<boolean> {
+// order_status is now automatically computed by a database trigger based on
+// is_delivered + payment_status (see the sync_order_status trigger). The app
+// should never write order_status directly — instead, mark the order
+// delivered here, and the trigger recalculates order_status for us.
+export async function markDelivered(id: string): Promise<boolean> {
   const { error } = await supabase
     .from('orders')
-    .update({ order_status: status })
+    .update({ is_delivered: true })
     .eq('id', id);
 
   if (error) {
-    console.error('Error updating order status:', error.message);
+    console.error('Error marking order delivered:', error.message);
     return false;
   }
 
