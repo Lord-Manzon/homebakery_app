@@ -132,6 +132,8 @@ export default function AddOrderModal() {
         order_status: 'active',
         payment_status: paymentStatus,
         is_delivered: false,
+        production_status: 'pending',
+        production_completed_at: null,
         order_type: orderType,
         delivery_address: orderType === 'delivery' ? deliveryAddress.trim() : null,
         delivery_fee: parseFloat(deliveryFee) || 0,

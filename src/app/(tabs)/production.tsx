@@ -74,15 +74,15 @@ export default function ProductionScreen() {
     if (missingItems.length > 0) {
       setConfirm({
         title: 'Missing Ingredients',
-        message: `You are short on ${missingItems.length} ingredient(s). Proceed anyway? Available stock will be fully deducted.`,
+        message: `You are short on ${missingItems.length} ingredient(s). Proceed anyway? Available stock will be fully deducted, and these orders will be marked as produced.`,
         actionLabel: 'Proceed',
         destructive: true,
         onConfirm: () => { setConfirm(null); confirmComplete(); },
       });
     } else {
       setConfirm({
-        title: 'Complete Production',
-        message: 'This will deduct all required ingredients from inventory. Continue?',
+        title: 'Complete Batch',
+        message: 'This will deduct all required ingredients from inventory and mark these orders as produced. Continue?',
         actionLabel: 'Complete',
         onConfirm: () => { setConfirm(null); confirmComplete(); },
       });
@@ -92,7 +92,10 @@ export default function ProductionScreen() {
   async function confirmComplete() {
     if (!summary) return;
     setCompleting(true);
-    const success = await completeProduction(summary.ingredientRequirements);
+    const success = await completeProduction(
+      summary.ingredientRequirements,
+      summary.orderIds
+    );
     setCompleting(false);
 
     if (success) {
@@ -267,7 +270,7 @@ export default function ProductionScreen() {
               ))
             )}
 
-            {/* Complete Production Button */}
+            {/* Complete Batch Button */}
             <TouchableOpacity
               style={[
                 styles.completeButton,
@@ -282,7 +285,7 @@ export default function ProductionScreen() {
                 <>
                   <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
                   <Text style={styles.completeButtonText}>
-                    Mark Production Complete
+                    Complete Batch
                   </Text>
                 </>
               )}

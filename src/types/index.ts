@@ -55,6 +55,8 @@ export type Order = {
   order_status: 'active' | 'completed';
   payment_status: 'unpaid' | 'paid';
   is_delivered: boolean;
+  production_status: 'pending' | 'completed';
+  production_completed_at: string | null;
   order_type: 'delivery' | 'pickup';
   delivery_address: string | null;
   delivery_fee: number;

@@ -30,14 +30,19 @@ export type ProductionSummary = {
   totalProducts: number;
   totalItems: number;
   missingIngredients: number;
+  orderIds: string[];
 };
 
 export async function getProductionSummary(
   products: { id: string; name: string }[],
   variants: { id: string; name: string; product_id: string }[]
 ): Promise<ProductionSummary> {
-  // Get all active orders and their items
-  const activeOrders = await getOrders('active');
+  // Get all active orders, then only keep the ones still awaiting production.
+  // Orders already marked 'completed' stay out of this list — this is what
+  // stops "Complete Batch" from deducting the same order's ingredients twice.
+  const activeOrders = (await getOrders('active')).filter(
+    (order) => order.production_status === 'pending'
+  );
   if (activeOrders.length === 0) {
     return {
       productionItems: [],
@@ -45,6 +50,7 @@ export async function getProductionSummary(
       totalProducts: 0,
       totalItems: 0,
       missingIngredients: 0,
+      orderIds: [],
     };
   }
 
@@ -138,11 +144,13 @@ export async function getProductionSummary(
     totalProducts: productionItems.length,
     totalItems: flatItems.reduce((sum, item) => sum + item.quantity, 0),
     missingIngredients,
+    orderIds: activeOrders.map((order) => order.id),
   };
 }
 
 export async function completeProduction(
-  ingredientRequirements: IngredientRequirement[]
+  ingredientRequirements: IngredientRequirement[],
+  orderIds: string[]
 ): Promise<boolean> {
   for (const req of ingredientRequirements) {
     const { data: ingredient, error: fetchError } = await supabase
@@ -174,6 +182,21 @@ export async function completeProduction(
       new_stock: newStock,
       notes: 'Deducted from production',
     });
+  }
+
+  if (orderIds.length > 0) {
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({
+        production_status: 'completed',
+        production_completed_at: new Date().toISOString(),
+      })
+      .in('id', orderIds);
+
+    if (orderError) {
+      console.error('Error marking orders as produced:', orderError.message);
+      return false;
+    }
   }
 
   return true;

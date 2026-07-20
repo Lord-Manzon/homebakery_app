@@ -166,9 +166,29 @@ export async function updateOrderWithItems(
   orderUpdates: Partial<Order>,
   items: Omit<OrderItem, 'id' | 'order_id' | 'created_at' | 'updated_at'>[]
 ): Promise<boolean> {
+  // Check whether the ingredient-relevant fields (product, variant, quantity)
+  // actually changed. Only reset production_status when they did — editing
+  // delivery time, address, or notes should NOT trigger a re-bake.
+  const { data: existingItems } = await supabase
+    .from('order_items')
+    .select('product_id, variant_id, quantity')
+    .eq('order_id', id);
+
+  const normalize = (list: { product_id: string; variant_id: string; quantity: number }[]) =>
+    [...list]
+      .map((i) => `${i.product_id}|${i.variant_id}|${i.quantity}`)
+      .sort()
+      .join(',');
+
+  const itemsChanged = normalize(existingItems ?? []) !== normalize(items);
+
+  const finalOrderUpdates: Partial<Order> = itemsChanged
+    ? { ...orderUpdates, production_status: 'pending', production_completed_at: null }
+    : orderUpdates;
+
   const { error: orderError } = await supabase
     .from('orders')
-    .update(orderUpdates)
+    .update(finalOrderUpdates)
     .eq('id', id);
 
   if (orderError) {
