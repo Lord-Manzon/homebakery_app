@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   deleteOrder,
   getOrderById,
@@ -23,6 +23,8 @@ import { getProducts, getVariantsByProduct } from '../../services/products';
 import { Order, OrderItem, Product, ProductVariant } from '../../types';
 
 export default function OrderDetailModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [order, setOrder] = useState<Order | null>(null);
@@ -235,8 +237,14 @@ export default function OrderDetailModal() {
       {/* Order Items */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Order Items</Text>
-        {orderItems.map((item) => (
-          <View key={item.id} style={styles.orderItem}>
+        {orderItems.map((item, index) => (
+          <View
+            key={item.id}
+            style={[
+              styles.orderItem,
+              index === orderItems.length - 1 && styles.orderItemLast,
+            ]}
+          >
             <View style={styles.orderItemLeft}>
               <Text style={styles.orderItemName}>
                 {getProductName(item.product_id)}
@@ -371,7 +379,7 @@ export default function OrderDetailModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -418,12 +426,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
   },
-  badgeDelivery: { backgroundColor: '#EBF5FB' },
-  badgePickup: { backgroundColor: '#EAFAF1' },
-  badgePaid: { backgroundColor: '#EAFAF1' },
-  badgeUnpaid: { backgroundColor: '#FDEDEC' },
+  badgeDelivery: { backgroundColor: Colors.infoBackground },
+  badgePickup: { backgroundColor: Colors.successBackground },
+  badgePaid: { backgroundColor: Colors.successBackground },
+  badgeUnpaid: { backgroundColor: Colors.errorBackground },
   badgeDelivered: { backgroundColor: '#F4ECF7' },
-  badgeActive: { backgroundColor: '#FFF3E0' },
+  badgeActive: { backgroundColor: Colors.lowStockBackground },
   badgeInactive: { backgroundColor: Colors.background },
   badgeText: {
     fontSize: 12,
@@ -455,6 +463,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+  },
+  orderItemLast: {
+    borderBottomWidth: 0,
   },
   orderItemLeft: {
     flex: 1,
@@ -529,9 +540,9 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
   },
-  actionPaid: { backgroundColor: '#EAFAF1' },
-  actionDelivered: { backgroundColor: '#EBF5FB' },
-  actionCancel: { backgroundColor: '#FDEDEC' },
+  actionPaid: { backgroundColor: Colors.successBackground },
+  actionDelivered: { backgroundColor: Colors.infoBackground },
+  actionCancel: { backgroundColor: Colors.errorBackground },
   actionText: {
     fontSize: 15,
     fontWeight: '600',

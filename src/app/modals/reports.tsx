@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   DayIndicator,
   PeriodSummary,
@@ -26,6 +26,8 @@ import {
 type PeriodTab = 'today' | 'week' | 'month' | 'custom';
 
 export default function ReportsModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
   const now = new Date();
 
@@ -383,7 +385,7 @@ export default function ReportsModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: 'row',
@@ -448,7 +450,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  customRangeBtnActive: { borderColor: Colors.primary, backgroundColor: '#FFF3E0' },
+  customRangeBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.lowStockBackground },
   customRangeBtnText: { fontSize: 13, fontWeight: '500', color: Colors.textMuted },
   customInputRow: {
     flexDirection: 'row',
