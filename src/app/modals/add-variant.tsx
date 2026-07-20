@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,10 +10,12 @@ import {
   View,
 } from 'react-native';
 import PopupSheet from '../../components/common/PopupSheet';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { addVariant } from '../../services/products';
 
 export default function AddVariantModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const { product_id } = useLocalSearchParams<{ product_id: string }>();
 
   const [name, setName] = useState('');
@@ -122,7 +124,7 @@ export default function AddVariantModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 4,

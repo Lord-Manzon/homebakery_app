@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type PopupSheetProps = {
   title: string;
@@ -21,6 +21,9 @@ type PopupSheetProps = {
 // taking the full screen. Used for quick single-purpose forms like
 // Edit Ingredient, Add Variant, etc.
 export default function PopupSheet({ title, children }: PopupSheetProps) {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
+
   return (
     <KeyboardAvoidingView
       style={styles.overlay}
@@ -47,7 +50,7 @@ export default function PopupSheet({ title, children }: PopupSheetProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
