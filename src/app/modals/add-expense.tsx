@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { addExpense, addIngredientPurchaseExpense } from '../../services/expenses';
 import { getIngredients } from '../../services/ingredients';
 import { Expense, Ingredient } from '../../types';
@@ -25,6 +25,8 @@ const EXPENSE_TYPES = [
 ];
 
 export default function AddExpenseModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     prefill_ingredient_id?: string;
@@ -271,7 +273,7 @@ export default function AddExpenseModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, padding: 16 },
   section: { marginBottom: 16 },
   label: {
@@ -292,7 +294,7 @@ const styles = StyleSheet.create({
     borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
     paddingHorizontal: 14, paddingVertical: 12, marginBottom: 6,
   },
-  typeItemSelected: { borderColor: Colors.primary, backgroundColor: '#FFF3E0' },
+  typeItemSelected: { borderColor: Colors.primary, backgroundColor: Colors.lowStockBackground },
   typeText: { fontSize: 14, color: Colors.textSecondary },
   typeTextSelected: { color: Colors.primary, fontWeight: '600' },
   typeCheck: { fontSize: 14, color: Colors.primary, fontWeight: '700' },
