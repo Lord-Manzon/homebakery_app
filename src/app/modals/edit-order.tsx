@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   getOrderById,
   getOrderItems,
@@ -29,6 +29,8 @@ type OrderItemDraft = {
 };
 
 export default function EditOrderModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -550,7 +552,7 @@ export default function EditOrderModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, padding: 16 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   section: { marginBottom: 16 },
@@ -612,7 +614,7 @@ const styles = StyleSheet.create({
     padding: 10, borderRadius: 8, borderWidth: 1, borderColor: Colors.border,
     backgroundColor: Colors.background,
   },
-  variantItemSelected: { borderColor: Colors.primary, backgroundColor: '#FFF3E0' },
+  variantItemSelected: { borderColor: Colors.primary, backgroundColor: Colors.lowStockBackground },
   variantItemName: { fontSize: 14, color: Colors.textPrimary, fontWeight: '600' },
   variantItemPrice: { fontSize: 14, color: Colors.success, fontWeight: '700' },
   quantityRow: { gap: 8 },
@@ -636,7 +638,7 @@ const styles = StyleSheet.create({
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   dateText: { fontSize: 15, color: Colors.textPrimary, paddingVertical: 2 },
   datePlaceholder: { fontSize: 15, color: Colors.textMuted, paddingVertical: 2 },
-  noVariantBox: { backgroundColor: '#FFF3E0', borderRadius: 10, padding: 12, alignItems: 'center', gap: 6 },
+  noVariantBox: { backgroundColor: Colors.lowStockBackground, borderRadius: 10, padding: 12, alignItems: 'center', gap: 6 },
   noVariantText: { fontSize: 13, color: Colors.warning, fontWeight: '600', textAlign: 'center' },
   noVariantLink: { fontSize: 13, color: Colors.primary, fontWeight: '600', textDecorationLine: 'underline' },
 });

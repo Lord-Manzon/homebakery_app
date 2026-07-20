@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { createOrder } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
 import { Product, ProductVariant } from '../../types';
@@ -25,6 +25,8 @@ type OrderItemDraft = {
 };
 
 export default function AddOrderModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
   const [customerName, setCustomerName] = useState('');
   const [orderType, setOrderType] = useState<'delivery' | 'pickup'>('delivery');
@@ -588,7 +590,7 @@ export default function AddOrderModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -758,7 +760,7 @@ const styles = StyleSheet.create({
   },
   variantItemSelected: {
     borderColor: Colors.primary,
-    backgroundColor: '#FFF3E0',
+    backgroundColor: Colors.lowStockBackground,
   },
   variantItemName: {
     fontSize: 14,
@@ -869,7 +871,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   noVariantBox: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: Colors.lowStockBackground,
     borderRadius: 10,
     padding: 12,
     alignItems: 'center',
