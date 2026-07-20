@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import FAB from '../../components/common/FAB';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   adjustStock,
   deleteIngredient,
@@ -23,6 +23,8 @@ import {
 import { Ingredient } from '../../types';
 
 export default function InventoryScreen() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [filtered, setFiltered] = useState<Ingredient[]>([]);
   const [recipeCounts, setRecipeCounts] = useState<Record<string, number>>({});
@@ -218,7 +220,7 @@ export default function InventoryScreen() {
       
       {/* Search */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={18} color="#999" />
+        <Ionicons name="search-outline" size={18} color={Colors.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search ingredients..."
@@ -228,7 +230,7 @@ export default function InventoryScreen() {
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color="#999" />
+            <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -240,7 +242,7 @@ export default function InventoryScreen() {
           <Text style={styles.summaryLabel}>Total</Text>
         </View>
         <View style={styles.summaryItem}>
-          <Text style={[styles.summaryNumber, { color: '#E07B39' }]}>
+          <Text style={[styles.summaryNumber, { color: Colors.primary }]}>
             {ingredients.filter(isLowStock).length}
           </Text>
           <Text style={styles.summaryLabel}>Low Stock</Text>
@@ -300,7 +302,7 @@ export default function InventoryScreen() {
         }
         ListEmptyComponent={
           <View style={styles.centered}>
-            <Ionicons name="cube-outline" size={48} color="#ddd" />
+            <Ionicons name="cube-outline" size={48} color={Colors.border} />
             <Text style={styles.emptyText}>No ingredients yet</Text>
             <Text style={styles.emptySubtext}>
               Tap the + button to add your first ingredient
@@ -371,13 +373,13 @@ export default function InventoryScreen() {
                       },
                     })}
                   >
-                    <Ionicons name="create-outline" size={20} color="#666" />
+                    <Ionicons name="create-outline" size={20} color={Colors.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.iconButton}
                     onPress={() => handleDelete(item)}
                   >
-                    <Ionicons name="trash-outline" size={20} color="#e74c3c" />
+                    <Ionicons name="trash-outline" size={20} color={Colors.error} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -547,10 +549,10 @@ function getRestockConfig(unit: string): { presets: number[]; step: number } {
   }
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
   },
   centered: {
     flex: 1,
@@ -565,15 +567,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
   },
   addButton: {
-    backgroundColor: '#E07B39',
+    backgroundColor: Colors.primary,
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -583,20 +585,20 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     marginHorizontal: 16,
     marginVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: Colors.border,
     height: 42,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 15,
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -606,7 +608,7 @@ const styles = StyleSheet.create({
   },
   summaryItem: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     borderRadius: 10,
     padding: 12,
     alignItems: 'center',
@@ -614,21 +616,21 @@ const styles = StyleSheet.create({
   summaryNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
   },
   summaryLabel: {
     fontSize: 12,
-    color: '#999',
+    color: Colors.textMuted,
     marginTop: 2,
   },
   alertsCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     borderRadius: 10,
     marginHorizontal: 16,
     marginBottom: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#FFE0B2',
+    borderColor: Colors.warning,
   },
   alertsHeader: {
     flexDirection: 'row',
@@ -639,7 +641,7 @@ const styles = StyleSheet.create({
   alertsTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
   },
   alertRow: {
     flexDirection: 'row',
@@ -656,12 +658,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.error,
   },
   alertDotLow: {
-    backgroundColor: '#E07B39',
+    backgroundColor: Colors.primary,
   },
   alertName: {
     flex: 1,
     fontSize: 13,
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
     marginRight: 8,
   },
   alertStatus: {
@@ -670,12 +672,12 @@ const styles = StyleSheet.create({
   },
   alertsMore: {
     fontSize: 11,
-    color: '#999',
+    color: Colors.textMuted,
     marginTop: 4,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     borderRadius: 10,
     marginHorizontal: 16,
     marginBottom: 8,
@@ -715,7 +717,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff3e0',
   },
   statusTextLow: {
-    color: '#E07B39',
+    color: Colors.primary,
   },
   statusBadgeIn: {
     backgroundColor: '#EAFAF1',
@@ -731,7 +733,7 @@ const styles = StyleSheet.create({
   qtyValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
   },
   recipeRow: {
     flexDirection: 'row',
@@ -766,7 +768,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FFF8ED',
+    backgroundColor: Colors.lowStockBackground,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -776,12 +778,12 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E07B39',
+    backgroundColor: Colors.lowStockText,
   },
   usedInItemText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
   },
   usedInNote: {
     fontSize: 11,
@@ -799,22 +801,22 @@ const styles = StyleSheet.create({
   },
   lowStockText: {
     fontSize: 10,
-    color: '#E07B39',
+    color: Colors.primary,
     fontWeight: '600',
   },
   ingredientName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
   },
   category: {
     fontSize: 13,
-    color: '#999',
+    color: Colors.textMuted,
     marginTop: 2,
   },
   stock: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.textSecondary,
     marginTop: 4,
   },
   iconButton: {
@@ -822,17 +824,17 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#999',
+    color: Colors.textMuted,
   },
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#999',
+    color: Colors.textMuted,
     marginTop: 12,
   },
   emptySubtext: {
     fontSize: 13,
-    color: '#bbb',
+    color: Colors.textMuted,
     marginTop: 4,
     textAlign: 'center',
     paddingHorizontal: 40,
@@ -913,7 +915,7 @@ const styles = StyleSheet.create({
   restockPresetText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#E07B39',
+    color: Colors.primary,
   },
   restockInputRow: {
     flexDirection: 'row',
@@ -931,7 +933,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: Colors.textPrimary,
     paddingVertical: 12,
   },
   restockUnit: {
