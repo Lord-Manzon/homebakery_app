@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,13 +10,15 @@ import {
   View,
 } from 'react-native';
 import PopupSheet from '../../components/common/PopupSheet';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { updateIngredient } from '../../services/ingredients';
 
 const UNITS = ['g', 'kg', 'ml', 'L', 'pcs', 'tsp', 'tbsp', 'cup', 'pack', 'bottle', 'sachet'];
 const CATEGORIES = ['Dry Goods', 'Dairy', 'Wet Ingredients', 'Sweeteners', 'Flavorings', 'Packaging', 'Others'];
 
 export default function EditIngredientModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const params = useLocalSearchParams();
 
   const [name, setName] = useState(params.name as string ?? '');
@@ -194,7 +196,7 @@ export default function EditIngredientModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 4,

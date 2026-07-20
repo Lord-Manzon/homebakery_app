@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import PopupSheet from '../../components/common/PopupSheet';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { getIngredients } from '../../services/ingredients';
 import { addRecipeIngredient } from '../../services/products';
 import { Ingredient } from '../../types';
@@ -19,6 +19,8 @@ import { Ingredient } from '../../types';
 const UNITS = ['g', 'kg', 'ml', 'L', 'pcs', 'tsp', 'tbsp', 'cup', 'pack', 'bottle', 'sachet'];
 
 export default function AddRecipeIngredientModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const { product_id } = useLocalSearchParams<{ product_id: string }>();
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -257,7 +259,7 @@ export default function AddRecipeIngredientModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 4,
@@ -338,7 +340,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   infoBox: {
-    backgroundColor: '#EBF5FB',
+    backgroundColor: Colors.infoBackground,
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
