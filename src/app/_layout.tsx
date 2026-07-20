@@ -1,13 +1,25 @@
 import { Stack } from 'expo-router';
-import { ThemeProvider } from '../contexts/ThemeContext';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
 };
 
-export default function RootLayout() {
+function RootLayoutNav() {
+  const Colors = useTheme();
+
+  // Shared look for every screen that shows a native header — background,
+  // back-arrow/tint color, and title text color all need to react to theme,
+  // not just the tint color like before.
+  const headerOptions = {
+    headerShown: true,
+    headerStyle: { backgroundColor: Colors.card },
+    headerTintColor: Colors.primary,
+    headerTitleStyle: { color: Colors.textPrimary },
+    headerShadowVisible: false,
+  };
+
   return (
-    <ThemeProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
@@ -29,28 +41,25 @@ export default function RootLayout() {
       <Stack.Screen
         name="modals/add-product"
         options={{
+          ...headerOptions,
           presentation: 'modal',
-          headerShown: true,
           title: 'Add Product',
-          headerTintColor: '#E07B39',
         }}
       />
       <Stack.Screen
         name="modals/edit-product"
         options={{
+          ...headerOptions,
           presentation: 'modal',
-          headerShown: true,
           title: 'Edit Product',
-          headerTintColor: '#E07B39',
         }}
       />
       <Stack.Screen
         name="modals/product-detail"
         options={{
+          ...headerOptions,
           presentation: 'modal',
-          headerShown: true,
           title: 'Product Details',
-          headerTintColor: '#E07B39',
         }}
       />
       <Stack.Screen
@@ -72,37 +81,33 @@ export default function RootLayout() {
       <Stack.Screen
         name="modals/add-order"
         options={{
+          ...headerOptions,
           presentation: 'modal',
-          headerShown: true,
           title: 'New Order',
-          headerTintColor: '#E07B39',
         }}
       />
       <Stack.Screen
         name="modals/order-detail"
         options={{
+          ...headerOptions,
           presentation: 'modal',
-          headerShown: true,
           title: 'Order Details',
-          headerTintColor: '#E07B39',
         }}
       />
       <Stack.Screen
         name="modals/edit-order"
         options={{
+          ...headerOptions,
           presentation: 'modal',
-          headerShown: true,
           title: 'Edit Order',
-          headerTintColor: '#E07B39',
         }}
       />
       <Stack.Screen
         name="modals/add-expense"
         options={{
+          ...headerOptions,
           presentation: 'modal',
-          headerShown: true,
           title: 'Add Expense',
-          headerTintColor: '#E07B39',
         }}
       />
       <Stack.Screen
@@ -126,6 +131,13 @@ export default function RootLayout() {
         options={{ headerShown: false }}
       />
     </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutNav />
     </ThemeProvider>
   );
 }

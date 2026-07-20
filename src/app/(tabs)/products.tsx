@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -13,14 +14,28 @@ import {
 } from 'react-native';
 import FAB from '../../components/common/FAB';
 import { useTheme } from '../../contexts/ThemeContext';
-import { archiveProduct, getProducts } from '../../services/products';
-import { Product } from '../../types';
+import { getIngredients } from '../../services/ingredients';
+import {
+  archiveProduct,
+  getProducts,
+  getRecipeIngredientsForProducts,
+  getVariantsForProducts,
+} from '../../services/products';
+import { Ingredient, Product, ProductVariant, RecipeIngredient } from '../../types';
+import {
+  calculateCostPerPiece,
+  calculateRecipeCost,
+  formatPriceRange,
+} from '../../utils/costing';
 
 export default function ProductsScreen() {
   const Colors = useTheme();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [products, setProducts] = useState<Product[]>([]);
   const [filtered, setFiltered] = useState<Product[]>([]);
+  const [recipeIngredients, setRecipeIngredients] = useState<RecipeIngredient[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,9 +47,20 @@ export default function ProductsScreen() {
   } | null>(null);
 
   async function load() {
-    const data = await getProducts();
-    setProducts(data);
-    setFiltered(data);
+    const productsData = await getProducts();
+    const ids = productsData.map((p) => p.id);
+
+    const [recipeData, variantsData, ingredientsData] = await Promise.all([
+      getRecipeIngredientsForProducts(ids),
+      getVariantsForProducts(ids),
+      getIngredients(),
+    ]);
+
+    setProducts(productsData);
+    setFiltered(productsData);
+    setRecipeIngredients(recipeData);
+    setVariants(variantsData);
+    setIngredients(ingredientsData);
     setLoading(false);
   }
 
@@ -62,6 +88,23 @@ export default function ProductsScreen() {
     }
   }, [search, products]);
 
+  // Cost/price/profit for one product, derived from the batch-loaded data.
+  function getCosting(product: Product) {
+    const items = recipeIngredients.filter((r) => r.product_id === product.id);
+    const productVariants = variants.filter((v) => v.product_id === product.id);
+
+    const recipeCost = calculateRecipeCost(items, ingredients);
+    const cost = calculateCostPerPiece(recipeCost, product.yield);
+    const prices = productVariants.map((v) => v.selling_price);
+    const profits = prices.map((p) => p - cost);
+
+    return {
+      costLabel: `₱${cost.toFixed(2)}`,
+      priceLabel: formatPriceRange(prices),
+      profitLabel: profits.length === 0 ? '—' : formatPriceRange(profits),
+    };
+  }
+
   function handleArchive(product: Product) {
     setConfirm({
       title: 'Archive Product',
@@ -85,8 +128,6 @@ export default function ProductsScreen() {
 
   return (
     <View style={styles.container}>
-      
-
       {/* Search */}
       <View style={styles.searchContainer}>
         <Ionicons name="search-outline" size={18} color={Colors.textMuted} />
@@ -128,84 +169,110 @@ export default function ProductsScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() =>
-              router.push({
-                pathname: '/modals/product-detail',
-                params: { id: item.id },
-              })
-            }
-          >
-            <View style={styles.cardLeft}>
-              {item.category && (
-                <Text style={styles.category}>{item.category}</Text>
-              )}
-              <Text style={styles.productName}>{item.name}</Text>
-              <View style={styles.metaRow}>
-                <Text style={styles.meta}>Yield: {item.yield}</Text>
-                {item.buffer_percent > 0 && (
-                  <Text style={styles.meta}>
-                    Buffer: {item.buffer_percent}%
-                  </Text>
-                )}
-                {item.markup_percent > 0 && (
-                  <Text style={styles.meta}>
-                    Markup: {item.markup_percent}%
-                  </Text>
-                )}
+        renderItem={({ item }) => {
+          const costing = getCosting(item);
+          return (
+            <TouchableOpacity
+              style={styles.card}
+              onPress={() =>
+                router.push({
+                  pathname: '/modals/product-detail',
+                  params: { id: item.id },
+                })
+              }
+            >
+              <View style={styles.cardTop}>
+                <View style={styles.thumbnailWrap}>
+                  {item.image_url ? (
+                    <Image
+                      source={{ uri: item.image_url }}
+                      style={styles.thumbnail}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={styles.thumbnailPlaceholder}>
+                      <Ionicons name="image-outline" size={18} color={Colors.textMuted} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.cardLeft}>
+                  {item.category && (
+                    <Text style={styles.category}>{item.category}</Text>
+                  )}
+                  <Text style={styles.productName}>{item.name}</Text>
+                </View>
+                <View style={styles.cardRight}>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push({
+                        pathname: '/modals/edit-product',
+                        params: { id: item.id },
+                      });
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={20} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleArchive(item);
+                    }}
+                  >
+                    <Ionicons name="archive-outline" size={20} color={Colors.error} />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-            <View style={styles.cardRight}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  router.push({
-                    pathname: '/modals/edit-product',
-                    params: { id: item.id },
-                  });
-                }}
-              >
-                <Ionicons name="create-outline" size={20} color={Colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleArchive(item);
-                }}
-              >
-                <Ionicons name="archive-outline" size={20} color={Colors.error} />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
-     <FAB onPress={() => router.push('/modals/add-product')} />
 
-    <Modal
-      visible={!!confirm}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setConfirm(null)}
-    >
-      <View style={styles.confirmOverlay}>
-        <View style={styles.confirmBox}>
-          <Text style={styles.confirmTitle}>{confirm?.title}</Text>
-          <Text style={styles.confirmMessage}>{confirm?.message}</Text>
-          <View style={styles.confirmButtons}>
-            <TouchableOpacity style={styles.confirmCancel} onPress={() => setConfirm(null)}>
-              <Text style={styles.confirmCancelText}>Cancel</Text>
+              <View style={styles.costRow}>
+                <View style={styles.costItem}>
+                  <Text style={styles.costLabel}>Cost</Text>
+                  <Text style={styles.costValue}>{costing.costLabel}</Text>
+                </View>
+                <View style={styles.costDivider} />
+                <View style={styles.costItem}>
+                  <Text style={styles.costLabel}>Price</Text>
+                  <Text style={[styles.costValue, { color: Colors.primary }]}>
+                    {costing.priceLabel}
+                  </Text>
+                </View>
+                <View style={styles.costDivider} />
+                <View style={styles.costItem}>
+                  <Text style={styles.costLabel}>Profit</Text>
+                  <Text style={[styles.costValue, { color: Colors.success }]}>
+                    {costing.profitLabel}
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.confirmAction} onPress={confirm?.onConfirm}>
-              <Text style={styles.confirmActionText}>{confirm?.actionLabel}</Text>
-            </TouchableOpacity>
+          );
+        }}
+      />
+      <FAB onPress={() => router.push('/modals/add-product')} />
+
+      <Modal
+        visible={!!confirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirm(null)}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <Text style={styles.confirmTitle}>{confirm?.title}</Text>
+            <Text style={styles.confirmMessage}>{confirm?.message}</Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity style={styles.confirmCancel} onPress={() => setConfirm(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmAction} onPress={confirm?.onConfirm}>
+                <Text style={styles.confirmActionText}>{confirm?.actionLabel}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
     </View>
   );
 }
@@ -220,28 +287,6 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 60,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: Colors.card,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-  },
-  addButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -289,9 +334,30 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     padding: 14,
+  },
+  cardTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  thumbnailWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  thumbnail: {
+    width: 44,
+    height: 44,
+  },
+  thumbnailPlaceholder: {
+    width: 44,
+    height: 44,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   cardLeft: {
     flex: 1,
@@ -313,14 +379,32 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
   },
-  metaRow: {
+  costRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
-  meta: {
-    fontSize: 12,
+  costItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  costDivider: {
+    width: 1,
+    height: 26,
+    backgroundColor: Colors.border,
+  },
+  costLabel: {
+    fontSize: 11,
     color: Colors.textMuted,
+    marginBottom: 2,
+  },
+  costValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
   },
   iconButton: {
     padding: 4,

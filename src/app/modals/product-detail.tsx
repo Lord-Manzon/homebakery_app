@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -21,6 +22,12 @@ import {
   getVariantsByProduct,
 } from '../../services/products';
 import { Ingredient, Product, ProductVariant, RecipeIngredient } from '../../types';
+import {
+  calculateCostPerPiece,
+  calculateIngredientCost,
+  calculateRecipeCost,
+  formatPriceRange,
+} from '../../utils/costing';
 
 export default function ProductDetailModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -70,12 +77,12 @@ export default function ProductDetailModal() {
     setRefreshing(false);
   }, [id]);
 
-  function getIngredientName(ingredientId: string): string {
-    return ingredients.find((i) => i.id === ingredientId)?.name ?? 'Unknown';
+  function getIngredient(ingredientId: string): Ingredient | undefined {
+    return ingredients.find((i) => i.id === ingredientId);
   }
 
-  function getIngredientUnit(ingredientId: string): string {
-    return ingredients.find((i) => i.id === ingredientId)?.unit ?? '';
+  function getIngredientName(ingredientId: string): string {
+    return getIngredient(ingredientId)?.name ?? 'Unknown';
   }
 
   function handleDeleteVariant(variant: ProductVariant) {
@@ -120,6 +127,17 @@ export default function ProductDetailModal() {
     );
   }
 
+  const recipeCost = calculateRecipeCost(recipeIngredients, ingredients);
+  const costPerPiece = calculateCostPerPiece(recipeCost, product.yield);
+  const prices = variants.map((v) => v.selling_price);
+  const profits = prices.map((p) => p - costPerPiece);
+  const priceLabel = formatPriceRange(prices);
+  const profitLabel = profits.length === 0 ? '—' : formatPriceRange(profits);
+  const marginLabel =
+    prices.length === 1 && prices[0] > 0
+      ? `${(((prices[0] - costPerPiece) / prices[0]) * 100).toFixed(0)}%`
+      : null;
+
   return (
     <View style={styles.container}>
     <ScrollView
@@ -127,6 +145,22 @@ export default function ProductDetailModal() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      {/* Photo */}
+      <View style={styles.photoWrap}>
+        {product.image_url ? (
+          <Image
+            source={{ uri: product.image_url }}
+            style={styles.photo}
+            contentFit="cover"
+          />
+        ) : (
+          <View style={styles.photoPlaceholder}>
+            <Ionicons name="image-outline" size={32} color={Colors.textMuted} />
+            <Text style={styles.photoPlaceholderText}>No photo yet</Text>
+          </View>
+        )}
+      </View>
+
       {/* Product Info */}
       <View style={styles.card}>
         {product.category && (
@@ -136,22 +170,31 @@ export default function ProductDetailModal() {
         {product.description && (
           <Text style={styles.description}>{product.description}</Text>
         )}
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <Text style={styles.metaValue}>{product.yield}</Text>
-            <Text style={styles.metaLabel}>Yield</Text>
+
+        <View style={styles.costSummary}>
+          <View style={styles.costSummaryItem}>
+            <Text style={styles.costSummaryLabel}>Cost</Text>
+            <Text style={styles.costSummaryValue}>₱{costPerPiece.toFixed(2)}</Text>
           </View>
-          <View style={styles.metaDivider} />
-          <View style={styles.metaItem}>
-            <Text style={styles.metaValue}>{product.buffer_percent}%</Text>
-            <Text style={styles.metaLabel}>Buffer</Text>
+          <View style={styles.costSummaryDivider} />
+          <View style={styles.costSummaryItem}>
+            <Text style={styles.costSummaryLabel}>Price</Text>
+            <Text style={[styles.costSummaryValue, { color: Colors.primary }]}>
+              {priceLabel}
+            </Text>
           </View>
-          <View style={styles.metaDivider} />
-          <View style={styles.metaItem}>
-            <Text style={styles.metaValue}>{product.markup_percent}%</Text>
-            <Text style={styles.metaLabel}>Markup</Text>
+          <View style={styles.costSummaryDivider} />
+          <View style={styles.costSummaryItem}>
+            <Text style={styles.costSummaryLabel}>Profit</Text>
+            <Text style={[styles.costSummaryValue, { color: Colors.success }]}>
+              {profitLabel}
+            </Text>
           </View>
         </View>
+        {marginLabel && (
+          <Text style={styles.marginText}>Margin: {marginLabel}</Text>
+        )}
+
         <TouchableOpacity
           style={styles.editButton}
           onPress={() =>
@@ -239,26 +282,57 @@ export default function ProductDetailModal() {
           </Text>
         </View>
       ) : (
-        recipeIngredients.map((item) => (
-          <View key={item.id} style={styles.listItem}>
-            <View style={styles.listItemLeft}>
-              <Text style={styles.listItemName}>
-                {getIngredientName(item.ingredient_id)}
-              </Text>
-              <Text style={styles.listItemSub}>
-                {item.quantity_used} {item.unit_used} used
-                {' · '}
-                bought {item.purchased_quantity} {item.purchased_unit}
-              </Text>
+        <>
+          {recipeIngredients.map((item) => (
+            <View key={item.id} style={styles.listItem}>
+              <View style={styles.listItemLeft}>
+                <Text style={styles.listItemName}>
+                  {getIngredientName(item.ingredient_id)}
+                </Text>
+                <Text style={styles.listItemSub}>
+                  {item.quantity_used} {item.unit_used} used
+                  {' · '}
+                  bought {item.purchased_quantity} {item.purchased_unit}
+                </Text>
+              </View>
+              <View style={styles.listItemRight}>
+                <Text style={styles.ingredientCost}>
+                  ₱{calculateIngredientCost(item, getIngredient(item.ingredient_id)).toFixed(2)}
+                </Text>
+                <TouchableOpacity
+                  style={styles.deleteIcon}
+                  onPress={() => handleDeleteRecipeIngredient(item)}
+                >
+                  <Ionicons name="trash-outline" size={18} color={Colors.error} />
+                </TouchableOpacity>
+              </View>
             </View>
-            <TouchableOpacity
-              style={styles.deleteIcon}
-              onPress={() => handleDeleteRecipeIngredient(item)}
-            >
-              <Ionicons name="trash-outline" size={18} color={Colors.error} />
-            </TouchableOpacity>
+          ))}
+          <View style={styles.recipeCostTotal}>
+            <Text style={styles.recipeCostTotalLabel}>Total recipe cost</Text>
+            <Text style={styles.recipeCostTotalValue}>₱{recipeCost.toFixed(2)}</Text>
           </View>
-        ))
+        </>
+      )}
+
+      {/* Instructions */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Instructions</Text>
+      </View>
+
+      {product.preparation_instructions ? (
+        <View style={styles.instructionsCard}>
+          <Text style={styles.instructionsText}>
+            {product.preparation_instructions}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.emptySection}>
+          <Text style={styles.emptyText}>No instructions yet</Text>
+          <Text style={styles.emptySubtext}>
+            Add baking steps from Edit Product
+          </Text>
+        </View>
       )}
 
       <View style={{ height: 40 }} />
@@ -303,6 +377,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.error,
   },
+  photoWrap: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  photo: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: Colors.card,
+  },
+  photoPlaceholder: {
+    width: '100%',
+    height: 160,
+    borderRadius: 12,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  photoPlaceholderText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
   card: {
     backgroundColor: Colors.card,
     margin: 16,
@@ -329,32 +429,38 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     lineHeight: 20,
   },
-  metaRow: {
+  costSummary: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.background,
     borderRadius: 10,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 4,
   },
-  metaItem: {
+  costSummaryItem: {
     flex: 1,
     alignItems: 'center',
   },
-  metaValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-  },
-  metaLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  metaDivider: {
+  costSummaryDivider: {
     width: 1,
     height: 30,
     backgroundColor: Colors.border,
+  },
+  costSummaryLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginBottom: 2,
+  },
+  costSummaryValue: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+  },
+  marginText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   editButton: {
     flexDirection: 'row',
@@ -439,6 +545,41 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Colors.success,
+  },
+  ingredientCost: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  recipeCostTotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  recipeCostTotalLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  recipeCostTotalValue: {
+    fontSize: 13,
+    color: Colors.textPrimary,
+    fontWeight: '700',
+  },
+  instructionsCard: {
+    backgroundColor: Colors.card,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 10,
+    padding: 16,
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+    lineHeight: 22,
   },
   deleteIcon: {
     padding: 4,

@@ -1,7 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,8 +14,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
-import { addProduct } from '../../services/products';
+import { useTheme } from '../../contexts/ThemeContext';
+import { addProduct, updateProduct, uploadProductImage } from '../../services/products';
 
 const CATEGORIES = [
   'Cakes', 'Cookies', 'Bread', 'Pastries',
@@ -19,6 +23,8 @@ const CATEGORIES = [
 ];
 
 export default function AddProductModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
@@ -27,8 +33,48 @@ export default function AddProductModal() {
   const [yieldAmount, setYieldAmount] = useState('1');
   const [bufferPercent, setBufferPercent] = useState('0');
   const [markupPercent, setMarkupPercent] = useState('0');
+  const [localImageUri, setLocalImageUri] = useState<string | null>(null);
+  const [localImageMimeType, setLocalImageMimeType] = useState<string | null>(null);
+  const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  async function pickFromGallery() {
+    setPhotoPickerVisible(false);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setErrors((e) => ({ ...e, general: 'Photo library permission was denied.' }));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setLocalImageUri(result.assets[0].uri);
+      setLocalImageMimeType(result.assets[0].mimeType ?? null);
+    }
+  }
+
+  async function pickFromCamera() {
+    setPhotoPickerVisible(false);
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      setErrors((e) => ({ ...e, general: 'Camera permission was denied.' }));
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setLocalImageUri(result.assets[0].uri);
+      setLocalImageMimeType(result.assets[0].mimeType ?? null);
+    }
+  }
 
   async function handleSave() {
     const newErrors: Record<string, string> = {};
@@ -41,6 +87,8 @@ export default function AddProductModal() {
     setErrors({});
     setSaving(true);
 
+    // Step 1: create the product first (no photo yet) — we need its id
+    // before we can name/upload the photo.
     const result = await addProduct({
       name: name.trim(),
       category: category.trim() || null,
@@ -53,17 +101,54 @@ export default function AddProductModal() {
       is_archived: false,
     });
 
-    setSaving(false);
-
-    if (result) {
-      router.back();
-    } else {
+    if (!result) {
+      setSaving(false);
       setErrors({ general: 'Failed to save product. Please try again.' });
+      return;
     }
+
+    // Step 2: if a photo was picked, upload it now and attach it.
+    // If this fails, the product itself is still saved successfully —
+    // we just leave it photo-less rather than losing all the entered data.
+    if (localImageUri) {
+      const uploadedUrl = await uploadProductImage(result.id, localImageUri, localImageMimeType);
+      if (uploadedUrl) {
+        await updateProduct(result.id, { image_url: uploadedUrl });
+      } else {
+        setSaving(false);
+        setErrors({ general: 'Product saved, but the photo failed to upload. You can add it from Edit Product.' });
+        router.back();
+        return;
+      }
+    }
+
+    setSaving(false);
+    router.back();
   }
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+
+      {/* Photo */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Photo</Text>
+        <TouchableOpacity
+          style={styles.photoTouchable}
+          onPress={() => setPhotoPickerVisible(true)}
+        >
+          {localImageUri ? (
+            <Image source={{ uri: localImageUri }} style={styles.photo} contentFit="cover" />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Ionicons name="camera-outline" size={28} color={Colors.textMuted} />
+              <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+            </View>
+          )}
+          <View style={styles.photoEditBadge}>
+            <Ionicons name="pencil" size={14} color="#fff" />
+          </View>
+        </TouchableOpacity>
+      </View>
 
       {/* Name */}
       <View style={styles.section}>
@@ -198,11 +283,42 @@ export default function AddProductModal() {
       </TouchableOpacity>
 
       <View style={{ height: 40 + insets.bottom }} />
+
+      {/* Photo source picker */}
+      <Modal
+        visible={photoPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.photoModalOverlay}
+          activeOpacity={1}
+          onPress={() => setPhotoPickerVisible(false)}
+        >
+          <View style={styles.photoModalBox}>
+            <TouchableOpacity style={styles.photoModalOption} onPress={pickFromCamera}>
+              <Ionicons name="camera-outline" size={20} color={Colors.textPrimary} />
+              <Text style={styles.photoModalOptionText}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.photoModalOption} onPress={pickFromGallery}>
+              <Ionicons name="image-outline" size={20} color={Colors.textPrimary} />
+              <Text style={styles.photoModalOptionText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.photoModalCancel}
+              onPress={() => setPhotoPickerVisible(false)}
+            >
+              <Text style={styles.photoModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -270,7 +386,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   infoBox: {
-    backgroundColor: '#EBF5FB',
+    backgroundColor: Colors.lowStockBackground,
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
@@ -304,5 +420,79 @@ const styles = StyleSheet.create({
     color: Colors.error,
     marginTop: 4,
     fontWeight: '500',
+  },
+  photoTouchable: {
+    alignSelf: 'flex-start',
+  },
+  photo: {
+    width: 140,
+    height: 105,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+  },
+  photoPlaceholder: {
+    width: 140,
+    height: 105,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  photoPlaceholderText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  photoEditBadge: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    backgroundColor: Colors.primary,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.background,
+  },
+  photoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  photoModalBox: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    paddingBottom: 32,
+  },
+  photoModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+  },
+  photoModalOptionText: {
+    fontSize: 15,
+    color: Colors.textPrimary,
+    fontWeight: '500',
+  },
+  photoModalCancel: {
+    marginTop: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  photoModalCancelText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
 });

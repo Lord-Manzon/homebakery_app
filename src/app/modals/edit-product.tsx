@@ -1,7 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
-import { getProductById, updateProduct } from '../../services/products';
+import { getProductById, updateProduct, uploadProductImage } from '../../services/products';
 
 const CATEGORIES = [
   'Cakes', 'Cookies', 'Bread', 'Pastries',
@@ -29,6 +33,10 @@ export default function EditProductModal() {
   const [yieldAmount, setYieldAmount] = useState('1');
   const [bufferPercent, setBufferPercent] = useState('0');
   const [markupPercent, setMarkupPercent] = useState('0');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [localImageUri, setLocalImageUri] = useState<string | null>(null);
+  const [localImageMimeType, setLocalImageMimeType] = useState<string | null>(null);
+  const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -44,11 +52,49 @@ export default function EditProductModal() {
         setYieldAmount(product.yield.toString());
         setBufferPercent(product.buffer_percent.toString());
         setMarkupPercent(product.markup_percent.toString());
+        setImageUrl(product.image_url);
       }
       setLoading(false);
     }
     load();
   }, [id]);
+
+  async function pickFromGallery() {
+    setPhotoPickerVisible(false);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setErrors((e) => ({ ...e, general: 'Photo library permission was denied.' }));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setLocalImageUri(result.assets[0].uri);
+      setLocalImageMimeType(result.assets[0].mimeType ?? null);
+    }
+  }
+
+  async function pickFromCamera() {
+    setPhotoPickerVisible(false);
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      setErrors((e) => ({ ...e, general: 'Camera permission was denied.' }));
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setLocalImageUri(result.assets[0].uri);
+      setLocalImageMimeType(result.assets[0].mimeType ?? null);
+    }
+  }
 
   async function handleSave() {
     const newErrors: Record<string, string> = {};
@@ -63,6 +109,17 @@ export default function EditProductModal() {
     setErrors({});
     setSaving(true);
 
+    let finalImageUrl = imageUrl;
+    if (localImageUri) {
+      const uploadedUrl = await uploadProductImage(id, localImageUri, localImageMimeType);
+      if (!uploadedUrl) {
+        setSaving(false);
+        setErrors({ general: 'Failed to upload photo. Product details were not saved — please try again.' });
+        return;
+      }
+      finalImageUrl = uploadedUrl;
+    }
+
     const success = await updateProduct(id, {
       name: name.trim(),
       category: category.trim() || null,
@@ -71,6 +128,7 @@ export default function EditProductModal() {
       yield: parseFloat(yieldAmount) || 1,
       buffer_percent: parseFloat(bufferPercent) || 0,
       markup_percent: parseFloat(markupPercent) || 0,
+      image_url: finalImageUrl,
     });
 
     setSaving(false);
@@ -90,8 +148,31 @@ export default function EditProductModal() {
     );
   }
 
+  const displayedImage = localImageUri ?? imageUrl;
+
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+
+      {/* Photo */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Photo</Text>
+        <TouchableOpacity
+          style={styles.photoTouchable}
+          onPress={() => setPhotoPickerVisible(true)}
+        >
+          {displayedImage ? (
+            <Image source={{ uri: displayedImage }} style={styles.photo} contentFit="cover" />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Ionicons name="camera-outline" size={28} color={Colors.textMuted} />
+              <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+            </View>
+          )}
+          <View style={styles.photoEditBadge}>
+            <Ionicons name="pencil" size={14} color="#fff" />
+          </View>
+        </TouchableOpacity>
+      </View>
 
       {/* Name */}
       <View style={styles.section}>
@@ -217,6 +298,37 @@ export default function EditProductModal() {
       </TouchableOpacity>
 
       <View style={{ height: 40 + insets.bottom }} />
+
+      {/* Photo source picker */}
+      <Modal
+        visible={photoPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.photoModalOverlay}
+          activeOpacity={1}
+          onPress={() => setPhotoPickerVisible(false)}
+        >
+          <View style={styles.photoModalBox}>
+            <TouchableOpacity style={styles.photoModalOption} onPress={pickFromCamera}>
+              <Ionicons name="camera-outline" size={20} color={Colors.textPrimary} />
+              <Text style={styles.photoModalOptionText}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.photoModalOption} onPress={pickFromGallery}>
+              <Ionicons name="image-outline" size={20} color={Colors.textPrimary} />
+              <Text style={styles.photoModalOptionText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.photoModalCancel}
+              onPress={() => setPhotoPickerVisible(false)}
+            >
+              <Text style={styles.photoModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -317,5 +429,79 @@ const styles = StyleSheet.create({
     color: Colors.error,
     marginTop: 4,
     fontWeight: '500',
+  },
+  photoTouchable: {
+    alignSelf: 'flex-start',
+  },
+  photo: {
+    width: 140,
+    height: 105,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+  },
+  photoPlaceholder: {
+    width: 140,
+    height: 105,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  photoPlaceholderText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  photoEditBadge: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    backgroundColor: Colors.primary,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.background,
+  },
+  photoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  photoModalBox: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    paddingBottom: 32,
+  },
+  photoModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+  },
+  photoModalOptionText: {
+    fontSize: 15,
+    color: Colors.textPrimary,
+    fontWeight: '500',
+  },
+  photoModalCancel: {
+    marginTop: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  photoModalCancelText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
 });

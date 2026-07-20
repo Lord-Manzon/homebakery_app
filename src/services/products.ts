@@ -175,6 +175,48 @@ export async function getRecipeIngredients(
   return data ?? [];
 }
 
+// Batch version — fetches recipe ingredients for many products in one query,
+// used by the product list screen to compute cost/price/profit per card
+// without firing one request per product.
+export async function getRecipeIngredientsForProducts(
+  productIds: string[]
+): Promise<RecipeIngredient[]> {
+  if (productIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('recipe_ingredients')
+    .select('*')
+    .in('product_id', productIds);
+
+  if (error) {
+    console.error('Error fetching recipe ingredients (batch):', error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+// Batch version of getVariantsByProduct, same reasoning as above.
+export async function getVariantsForProducts(
+  productIds: string[]
+): Promise<ProductVariant[]> {
+  if (productIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('product_variants')
+    .select('*')
+    .in('product_id', productIds)
+    .eq('is_archived', false)
+    .order('selling_price', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching variants (batch):', error.message);
+    return [];
+  }
+
+  return data ?? [];
+}
+
 export async function addRecipeIngredient(
   recipeIngredient: Omit<RecipeIngredient, 'id' | 'created_at' | 'updated_at'>
 ): Promise<RecipeIngredient | null> {
@@ -204,4 +246,45 @@ export async function deleteRecipeIngredient(id: string): Promise<boolean> {
   }
 
   return true;
+}
+
+// Uploads a locally-picked photo (from expo-image-picker) to the
+// `product-images` bucket and returns its public URL, or null on failure.
+export async function uploadProductImage(
+  productId: string,
+  localUri: string,
+  knownMimeType?: string | null
+): Promise<string | null> {
+  try {
+    const response = await fetch(localUri);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+
+    // Trust the picker's reported mimeType first (most reliable), then the
+    // blob's own type as a fallback, then default to jpeg as a last resort.
+    // We deliberately do NOT parse the file extension from the URI — on web,
+    // expo-image-picker returns a blob: URL with no real extension, which
+    // was producing an invalid Content-Type header.
+    const resolvedType = knownMimeType || blob.type || 'image/jpeg';
+    const extension = resolvedType.split('/')[1]?.split('+')[0] || 'jpg';
+    const path = `${productId}-${Date.now()}.${extension}`;
+
+    const { error } = await supabase.storage
+      .from('product-images')
+      .upload(path, arrayBuffer, {
+        contentType: resolvedType,
+        upsert: true,
+      });
+
+    if (error) {
+      console.error('Error uploading product image:', error.message);
+      return null;
+    }
+
+    const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+    return data.publicUrl;
+  } catch (err) {
+    console.error('Error uploading product image:', err);
+    return null;
+  }
 }
