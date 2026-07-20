@@ -1,16 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import PopupSheet from '../../components/common/PopupSheet';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { updateExpense } from '../../services/expenses';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -23,6 +23,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function EditExpenseModal() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const params = useLocalSearchParams();
   const expenseType = params.expense_type as string;
   const isIngredientPurchase = expenseType === 'ingredient_purchase';
@@ -154,7 +156,7 @@ export default function EditExpenseModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 4,

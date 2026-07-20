@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { deleteExpense, getExpenses, getExpenseSummary } from '../../services/expenses';
 import { Expense } from '../../types';
 
@@ -25,6 +25,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function ExpensesScreen() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,7 +186,7 @@ export default function ExpensesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: 'row',
