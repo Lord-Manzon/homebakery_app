@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Modal,
   RefreshControl,
@@ -11,13 +11,15 @@ import {
   View
 } from 'react-native';
 import FAB from '../../components/common/FAB';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { deleteOrder, getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
 import { Order } from '../../types';
 
 type TabType = 'active' | 'completed';
 
 export default function OrdersScreen() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [orders, setOrders] = useState<Order[]>([]);
   const [itemSummaries, setItemSummaries] = useState<Record<string, string>>({});
@@ -214,7 +216,7 @@ export default function OrdersScreen() {
                         : styles.badgePickup,
                     ]}
                   >
-                    <Text style={styles.badgeText}>
+                    <Text style={item.order_type === 'delivery' ? styles.badgeDeliveryText : styles.badgePickupText}>
                       {item.order_type === 'delivery' ? '🛵 Delivery' : '🏠 Pickup'}
                     </Text>
                   </View>
@@ -226,13 +228,13 @@ export default function OrdersScreen() {
                         : styles.badgeUnpaid,
                     ]}
                   >
-                    <Text style={styles.badgeText}>
+                    <Text style={item.payment_status === 'paid' ? styles.badgePaidText : styles.badgeUnpaidText}>
                       {item.payment_status === 'paid' ? '✓ Paid' : 'Unpaid'}
                     </Text>
                   </View>
                   {item.is_delivered && (
                     <View style={[styles.badge, styles.badgeDelivered]}>
-                      <Text style={styles.badgeText}>🚚 Delivered</Text>
+                      <Text style={styles.badgeDeliveredText}>🚚 Delivered</Text>
                     </View>
                   )}
                 </View>
@@ -277,7 +279,7 @@ export default function OrdersScreen() {
                         handleMarkPaid(item);
                       }}
                     >
-                      <Text style={styles.actionButtonText}>Mark Paid</Text>
+                      <Text style={styles.actionPaidText}>Mark Paid</Text>
                     </TouchableOpacity>
                   )}
                   {!item.is_delivered && (
@@ -288,7 +290,7 @@ export default function OrdersScreen() {
                         handleMarkDelivered(item);
                       }}
                     >
-                      <Text style={styles.actionButtonText}>Mark Delivered</Text>
+                      <Text style={styles.actionDeliveredText}>Mark Delivered</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -298,7 +300,7 @@ export default function OrdersScreen() {
                       handleDelete(item);
                     }}
                   >
-                    <Text style={styles.actionButtonText}>Delete</Text>
+                    <Text style={styles.actionCancelText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -312,7 +314,7 @@ export default function OrdersScreen() {
                       handleDelete(item);
                     }}
                   >
-                    <Text style={styles.actionButtonText}>Delete</Text>
+                    <Text style={styles.actionCancelText}>Delete</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -357,7 +359,7 @@ export default function OrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -483,24 +485,44 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   badgeDelivery: {
-    backgroundColor: '#EBF5FB',
+    backgroundColor: Colors.info + '22',
   },
-  badgePickup: {
-    backgroundColor: '#EAFAF1',
-  },
-  badgePaid: {
-    backgroundColor: '#EAFAF1',
-  },
-  badgeUnpaid: {
-    backgroundColor: '#FDEDEC',
-  },
-  badgeDelivered: {
-    backgroundColor: '#F4ECF7',
-  },
-  badgeText: {
+  badgeDeliveryText: {
     fontSize: 11,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: Colors.info,
+  },
+  badgePickup: {
+    backgroundColor: Colors.success + '22',
+  },
+  badgePickupText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.success,
+  },
+  badgePaid: {
+    backgroundColor: Colors.success + '22',
+  },
+  badgePaidText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.success,
+  },
+  badgeUnpaid: {
+    backgroundColor: Colors.error + '22',
+  },
+  badgeUnpaidText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.error,
+  },
+  badgeDelivered: {
+    backgroundColor: Colors.primary + '22',
+  },
+  badgeDeliveredText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary,
   },
   cardBottom: {
     flexDirection: 'row',
@@ -540,18 +562,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionPaid: {
-    backgroundColor: '#EAFAF1',
+    backgroundColor: Colors.success + '22',
   },
-  actionDelivered: {
-    backgroundColor: '#EBF5FB',
-  },
-  actionCancel: {
-    backgroundColor: '#FDEDEC',
-  },
-  actionButtonText: {
+  actionPaidText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: Colors.success,
+  },
+  actionDelivered: {
+    backgroundColor: Colors.info + '22',
+  },
+  actionDeliveredText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.info,
+  },
+  actionCancel: {
+    backgroundColor: Colors.error + '22',
+  },
+  actionCancelText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.error,
   },
   loadingText: {
     fontSize: 16,

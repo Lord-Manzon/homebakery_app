@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { ThemeProvider } from '../contexts/ThemeContext';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -6,6 +7,7 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   return (
+    <ThemeProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
@@ -124,5 +126,6 @@ export default function RootLayout() {
         options={{ headerShown: false }}
       />
     </Stack>
+    </ThemeProvider>
   );
 }

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -12,11 +12,13 @@ import {
   View,
 } from 'react-native';
 import FAB from '../../components/common/FAB';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { archiveProduct, getProducts } from '../../services/products';
 import { Product } from '../../types';
 
 export default function ProductsScreen() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [products, setProducts] = useState<Product[]>([]);
   const [filtered, setFiltered] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
@@ -208,7 +210,7 @@ export default function ProductsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

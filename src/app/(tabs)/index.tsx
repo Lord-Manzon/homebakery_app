@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { DashboardStats, getDashboardStats } from '../../services/dashboard';
 import { getSettings } from '../../services/settings';
 import { Settings } from '../../types';
@@ -17,6 +17,8 @@ import { Settings } from '../../types';
 type PeriodTab = 'today' | 'week' | 'month';
 
 export default function DashboardScreen() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,7 +183,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontSize: 16, color: Colors.textMuted },

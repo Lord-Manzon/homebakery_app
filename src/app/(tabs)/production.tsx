@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   completeProduction,
   getProductionSummary,
@@ -20,6 +20,8 @@ import {
 import { getProducts, getVariantsByProduct } from '../../services/products';
 
 export default function ProductionScreen() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [summary, setSummary] = useState<ProductionSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -262,7 +264,7 @@ export default function ProductionScreen() {
                     styles.statusBadge,
                     req.sufficient ? styles.statusSufficient : styles.statusInsufficient,
                   ]}>
-                    <Text style={styles.statusText}>
+                    <Text style={req.sufficient ? styles.statusSufficientText : styles.statusInsufficientText}>
                       {req.sufficient ? '✓ OK' : '⚠️ Low'}
                     </Text>
                   </View>
@@ -358,7 +360,7 @@ function formatQty(n: number): string {
   return n % 1 === 0 ? n.toString() : n.toFixed(1);
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centered: {
     flex: 1,
@@ -378,13 +380,13 @@ const styles = StyleSheet.create({
   summaryNumber: { fontSize: 24, fontWeight: 'bold', color: Colors.textPrimary },
   summaryLabel: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   alertCard: {
-    backgroundColor: '#FDEDEC',
+    backgroundColor: Colors.error + '15',
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#FADBD8',
+    borderColor: Colors.error + '40',
   },
   alertHeader: {
     flexDirection: 'row',
@@ -397,7 +399,7 @@ const styles = StyleSheet.create({
   alertItem: {
     marginBottom: 10,
     padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: Colors.card,
     borderRadius: 8,
   },
   alertItemRow: {
@@ -455,9 +457,10 @@ const styles = StyleSheet.create({
   ingredientName: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
   ingredientDetail: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  statusSufficient: { backgroundColor: '#EAFAF1' },
-  statusInsufficient: { backgroundColor: '#FDEDEC' },
-  statusText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
+  statusSufficient: { backgroundColor: Colors.success + '22' },
+  statusSufficientText: { fontSize: 12, fontWeight: '600', color: Colors.success },
+  statusInsufficient: { backgroundColor: Colors.error + '22' },
+  statusInsufficientText: { fontSize: 12, fontWeight: '600', color: Colors.error },
   completeButton: {
     flexDirection: 'row',
     alignItems: 'center',

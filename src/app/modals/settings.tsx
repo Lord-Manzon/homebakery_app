@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { useThemeContext } from '../../contexts/ThemeContext';
 import { getSettings, updateSettings } from '../../services/settings';
 
 const CURRENCIES = ['PHP', 'USD', 'EUR', 'SGD', 'MYR', 'JPY', 'AUD', 'GBP'];
@@ -27,6 +27,8 @@ const THEMES: { value: 'light' | 'dark' | 'system'; label: string; icon: string 
 
 export default function SettingsModal() {
   const insets = useSafeAreaInsets();
+  const { colors: Colors, setPreference } = useThemeContext();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [businessName, setBusinessName] = useState('');
   const [businessAddress, setBusinessAddress] = useState('');
   const [currency, setCurrency] = useState('PHP');
@@ -68,6 +70,7 @@ export default function SettingsModal() {
     });
     setSaving(false);
     if (success) {
+      setPreference(theme);
       setSavedMessage(true);
       setTimeout(() => setSavedMessage(false), 2500);
     } else {
@@ -272,7 +275,7 @@ export default function SettingsModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 

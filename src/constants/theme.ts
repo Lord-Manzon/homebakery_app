@@ -7,21 +7,45 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-export const Colors = {
-  primary: '#E07B39',
-  background: '#F5F5F5',
-  card: '#FFFFFF',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#666666',
-  textMuted: '#999999',
-  border: '#EEEEEE',
-  success: '#27AE60',
-  error: '#E74C3C',
-  warning: '#F39C12',
-  info: '#2980B9',
-  lowStockBackground: '#FFF3E0',
-  lowStockText: '#E07B39',
+export const ThemePalettes = {
+  light: {
+    primary: '#E07B39',
+    background: '#F5F5F5',
+    card: '#FFFFFF',
+    textPrimary: '#1A1A1A',
+    textSecondary: '#666666',
+    textMuted: '#999999',
+    border: '#EEEEEE',
+    success: '#27AE60',
+    error: '#E74C3C',
+    warning: '#F39C12',
+    info: '#2980B9',
+    lowStockBackground: '#FFF3E0',
+    lowStockText: '#E07B39',
+  },
+  dark: {
+    primary: '#F0975A',
+    background: '#1A1512',
+    card: '#30261F',
+    textPrimary: '#F5F1EC',
+    textSecondary: '#C2B3A6',
+    textMuted: '#9A8D82',
+    border: '#4A4037',
+    success: '#57C27B',
+    error: '#FF6B5B',
+    warning: '#F5A623',
+    info: '#5DADE2',
+    lowStockBackground: '#4A361D',
+    lowStockText: '#F0975A',
+  },
 } as const;
+
+export type ThemeColorKey = keyof typeof ThemePalettes.light;
+
+// Backward-compatible static export — screens not yet converted to useTheme()
+// keep importing this and stay light-mode-only until they're migrated.
+// TODO: remove once every screen uses useTheme() instead of this.
+export const Colors = ThemePalettes.light;
 
 
 

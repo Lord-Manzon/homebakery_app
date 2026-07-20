@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -11,12 +11,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { getSettings } from '../../services/settings';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.72;
 
 export default function TabsLayout() {
+  const Colors = useTheme();
+  const styles = useMemo(() => getStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
   const [showSidebar, setShowSidebar] = useState(false);
   const [businessName, setBusinessName] = useState('HomeBakery');
@@ -171,10 +173,10 @@ export default function TabsLayout() {
           headerStyle: { backgroundColor: Colors.card },
           headerTitleStyle: { color: Colors.textPrimary, fontWeight: '700' },
           tabBarActiveTintColor: Colors.primary,
-          tabBarInactiveTintColor: '#999',
+          tabBarInactiveTintColor: Colors.textMuted,
           tabBarStyle: {
-            backgroundColor: '#fff',
-            borderTopColor: '#eee',
+            backgroundColor: Colors.card,
+            borderTopColor: Colors.border,
             height: 60 + insets.bottom,
             paddingBottom: 8 + insets.bottom,
           },
@@ -236,7 +238,7 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   modalContainer: {
     flex: 1,
     flexDirection: 'row',
