@@ -27,23 +27,31 @@ export const ThemePalettes = {
     lowStockText: '#E07B39',
   },
   dark: {
-    primary: '#F0975A',
-    background: '#1A1512',
-    card: '#30261F',
-    textPrimary: '#F5F1EC',
-    textSecondary: '#C2B3A6',
-    textMuted: '#9A8D82',
-    border: '#4A4037',
-    success: '#57C27B',
-    error: '#FF6B5B',
-    warning: '#F5A623',
-    info: '#5DADE2',
-    infoBackground: '#22333F',
-    successBackground: '#1F3A2C',
-    errorBackground: '#3D2420',
-    lowStockBackground: '#4A361D',
-    lowStockText: '#F0975A',
-  },
+  primary: '#F0975A',
+  primarySoft: '#F8C79A',        // ← add
+
+  background: '#1A1512',
+  card: '#30261F',
+  surface: '#352A23',            // ← add
+
+  textPrimary: '#F5F1EC',
+  textSecondary: '#C2B3A6',
+  textMuted: '#9A8D82',
+
+  border: '#4A4037',
+
+  success: '#57C27B',
+  error: '#FF6B5B',
+  warning: '#F5A623',
+  info: '#5DADE2',
+
+  successBackground: '#1F3A2C',  // ✅ keep
+  infoBackground: '#22333F',     // ✅ keep
+  errorBackground: '#3D2420',    // ✅ keep
+
+  lowStockBackground: '#4A361D',
+  lowStockText: '#F0975A',
+}
 } as const;
 
 export type ThemeColorKey = keyof typeof ThemePalettes.light;

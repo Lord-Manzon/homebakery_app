@@ -5,6 +5,7 @@ import {
   Animated,
   Dimensions,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -183,6 +184,9 @@ export default function TabsLayout() {
           tabBarLabelStyle: {
             fontSize: 11,
           },
+          sceneStyle: {
+            backgroundColor: Colors.background,
+          },
         }}
       >
         <Tabs.Screen
@@ -253,10 +257,17 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     height: '100%',
     backgroundColor: Colors.card,
     elevation: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: {
+        boxShadow: '-2px 0px 12px rgba(0,0,0,0.15)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: -2, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+    }),
     paddingBottom: 32,
   },
   sidebarHeader: {
