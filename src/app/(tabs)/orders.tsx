@@ -1,32 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  LayoutAnimation,
+  Animated,
   Modal,
-  Platform,
   RefreshControl,
-  SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
-  UIManager,
   View
 } from 'react-native';
 import FAB from '../../components/common/FAB';
 import { useTheme } from '../../contexts/ThemeContext';
 import { deleteOrder, getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
 import { Order } from '../../types';
-
-// LayoutAnimation needs to be explicitly enabled on Android (iOS and web
-// don't need this step — iOS supports it by default, and web silently
-// no-ops it, which just means no animation there rather than a crash).
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type TabType = 'active' | 'completed';
 type FilterType = 'delivery' | 'pickup' | 'unpaid';
@@ -47,7 +34,8 @@ export default function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<FilterType>>(new Set());
-  const [heroVisible, setHeroVisible] = useState(true);
+  const [collapsibleHeight, setCollapsibleHeight] = useState(0);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -163,18 +151,29 @@ export default function OrdersScreen() {
   const paidCount = orders.filter((o) => o.payment_status === 'paid').length;
   const unpaidCount = orders.filter((o) => o.payment_status === 'unpaid').length;
 
-  // Collapse the hero card once the list is scrolled down a bit, so more
-  // orders are visible on screen; bring it back once scrolled near the top.
-  function handleScroll(e: { nativeEvent: { contentOffset: { y: number } } }) {
-    const y = e.nativeEvent.contentOffset.y;
-    if (y > 40 && heroVisible) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setHeroVisible(false);
-    } else if (y <= 40 && !heroVisible) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setHeroVisible(true);
-    }
-  }
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: false } // height can't be native-driven, so this whole handler runs on the JS thread
+  );
+
+  // Height and fade both track scroll position directly (0 → fully collapsed
+  // by the time you've scrolled past the collapsible section's own height),
+  // instead of snapping at a fixed threshold — that's what makes it track
+  // your finger smoothly instead of "teleporting".
+  const animatedHeight = collapsibleHeight > 0
+    ? scrollY.interpolate({
+        inputRange: [0, collapsibleHeight],
+        outputRange: [collapsibleHeight, 0],
+        extrapolate: 'clamp',
+      })
+    : undefined;
+  const animatedOpacity = collapsibleHeight > 0
+    ? scrollY.interpolate({
+        inputRange: [0, collapsibleHeight * 0.7],
+        outputRange: [1, 0],
+        extrapolate: 'clamp',
+      })
+    : 1;
 
   const FILTER_CHIPS: { key: FilterType; label: string; icon: string }[] = [
     { key: 'delivery', label: 'Delivery', icon: 'bicycle-outline' },
@@ -185,73 +184,88 @@ export default function OrdersScreen() {
   return (
     <View style={styles.container}>
 
-      {/* Hero summary — collapses on scroll */}
-      {activeTab === 'active' && heroVisible && (
-        <View style={styles.heroCard}>
-          <Text style={styles.heroLabel}>Expected</Text>
-          <Text style={styles.heroValue}>₱{totalRevenue.toFixed(2)}</Text>
-          <View style={styles.heroDivider} />
-          <View style={styles.heroSplitRow}>
-            <View style={styles.heroSplitItem}>
-              <Text style={styles.heroSplitValue}>{orders.length}</Text>
-              <Text style={styles.heroSplitLabel}>Active</Text>
+      {/* Hero summary + Tabs + Filter chips — all collapse together on scroll */}
+      <Animated.View
+        style={{ height: animatedHeight, opacity: animatedOpacity, overflow: 'hidden' }}
+      >
+        <View
+          onLayout={(e) => {
+            // Measure the natural height once, so we know the full range
+            // to collapse from. Only set it the first time to avoid a
+            // resize loop once height starts animating.
+            if (collapsibleHeight === 0) {
+              setCollapsibleHeight(e.nativeEvent.layout.height);
+            }
+          }}
+        >
+          {activeTab === 'active' && (
+            <View style={styles.heroCard}>
+              <Text style={styles.heroLabel}>Expected</Text>
+              <Text style={styles.heroValue}>₱{totalRevenue.toFixed(2)}</Text>
+              <View style={styles.heroDivider} />
+              <View style={styles.heroSplitRow}>
+                <View style={styles.heroSplitItem}>
+                  <Text style={styles.heroSplitValue}>{orders.length}</Text>
+                  <Text style={styles.heroSplitLabel}>Active</Text>
+                </View>
+                <View style={styles.heroSplitDivider} />
+                <View style={styles.heroSplitItem}>
+                  <Text style={[styles.heroSplitValue, { color: Colors.success }]}>{paidCount}</Text>
+                  <Text style={styles.heroSplitLabel}>Paid</Text>
+                </View>
+                <View style={styles.heroSplitDivider} />
+                <View style={styles.heroSplitItem}>
+                  <Text style={[styles.heroSplitValue, { color: Colors.error }]}>{unpaidCount}</Text>
+                  <Text style={styles.heroSplitLabel}>Unpaid</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.heroSplitDivider} />
-            <View style={styles.heroSplitItem}>
-              <Text style={[styles.heroSplitValue, { color: Colors.success }]}>{paidCount}</Text>
-              <Text style={styles.heroSplitLabel}>Paid</Text>
-            </View>
-            <View style={styles.heroSplitDivider} />
-            <View style={styles.heroSplitItem}>
-              <Text style={[styles.heroSplitValue, { color: Colors.error }]}>{unpaidCount}</Text>
-              <Text style={styles.heroSplitLabel}>Unpaid</Text>
-            </View>
+          )}
+
+          {/* Tabs */}
+          <View style={styles.tabs}>
+            {(['active', 'completed'] as TabType[]).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tab, activeTab === tab && styles.tabActive]}
+                onPress={() => handleTabChange(tab)}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab && styles.tabTextActive,
+                  ]}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Filter chips */}
+          <View style={styles.filterRow}>
+            {FILTER_CHIPS.map((chip) => {
+              const active = activeFilters.has(chip.key);
+              return (
+                <TouchableOpacity
+                  key={chip.key}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => toggleFilter(chip.key)}
+                >
+                  <Ionicons
+                    name={chip.icon as any}
+                    size={14}
+                    color={active ? '#fff' : Colors.textSecondary}
+                  />
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {chip.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
-      )}
-
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        {(['active', 'completed'] as TabType[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => handleTabChange(tab)}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === tab && styles.tabTextActive,
-              ]}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Filter chips */}
-      <View style={styles.filterRow}>
-        {FILTER_CHIPS.map((chip) => {
-          const active = activeFilters.has(chip.key);
-          return (
-            <TouchableOpacity
-              key={chip.key}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-              onPress={() => toggleFilter(chip.key)}
-            >
-              <Ionicons
-                name={chip.icon as any}
-                size={14}
-                color={active ? '#fff' : Colors.textSecondary}
-              />
-              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                {chip.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      </Animated.View>
 
       {/* Orders List */}
       {loading ? (
@@ -271,7 +285,7 @@ export default function OrdersScreen() {
           )}
         </View>
       ) : (
-        <SectionList
+        <Animated.SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
           onScroll={handleScroll}
