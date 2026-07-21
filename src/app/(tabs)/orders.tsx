@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import FAB from '../../components/common/FAB';
 import { useTheme } from '../../contexts/ThemeContext';
-import { deleteOrder, getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
+import { getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
 import { Order } from '../../types';
 
 type TabType = 'active' | 'completed';
@@ -111,19 +111,7 @@ export default function OrdersScreen() {
     });
   }
 
-  function handleDelete(order: Order) {
-    setConfirm({
-      title: 'Delete Order',
-      message: `Permanently delete ${order.customer_name}'s order? This cannot be undone.`,
-      actionLabel: 'Delete',
-      destructive: true,
-      onConfirm: async () => {
-        await deleteOrder(order.id);
-        setConfirm(null);
-        await load(activeTab);
-      },
-    });
-  }
+  
 
   const filteredOrders = orders.filter((o) => {
     const wantsDelivery = activeFilters.has('delivery');
@@ -330,18 +318,8 @@ export default function OrdersScreen() {
                 })
               }
             >
-              <TouchableOpacity
-                style={styles.deleteIcon}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleDelete(item);
-                }}
-              >
-                <Ionicons name="trash-outline" size={17} color={Colors.textMuted} />
-              </TouchableOpacity>
-
               <View style={styles.cardTop}>
-                <Text style={styles.customerName}>{item.customer_name}</Text>
+                <Text style={styles.customerName} numberOfLines={1}>{item.customer_name}</Text>
                 <View style={styles.badges}>
                   <View
                     style={[
@@ -549,6 +527,8 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     padding: 4,
     gap: 4,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   tab: {
     flex: 1,
@@ -562,7 +542,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   tabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
   },
   tabTextActive: {
     color: '#fff',
@@ -582,7 +562,8 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.textMuted + '55',
+    backgroundColor: Colors.card,
   },
   filterChipActive: {
     backgroundColor: Colors.primary,
@@ -628,23 +609,18 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     padding: 14,
     position: 'relative',
   },
-  deleteIcon: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    padding: 4,
-    zIndex: 1,
-  },
   cardTop: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
-    paddingRight: 28,
+    gap: 8,
   },
   customerName: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 6,
+    flexShrink: 1,
   },
   itemSummary: {
     fontSize: 13,
@@ -654,7 +630,9 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'flex-end',
     gap: 6,
+    flexShrink: 0,
   },
   badge: {
     paddingHorizontal: 8,

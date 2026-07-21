@@ -20,7 +20,12 @@ function RootLayoutNav() {
   };
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: Colors.background },
+      }}
+    >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="modals/add-ingredient"
