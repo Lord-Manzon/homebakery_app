@@ -28,6 +28,23 @@ type OrderItemDraft = {
   quantity: number;
 };
 
+// Raw HTML <input> elements aren't RN components, so they need a plain CSS
+// style object (px units, camelCase) instead of a StyleSheet entry — this
+// keeps them visually matching the app's themed inputs on web.
+function webInputStyle(Colors: ReturnType<typeof useTheme>, hasError: boolean) {
+  return {
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    border: `1px solid ${hasError ? Colors.error : Colors.border}`,
+    padding: '10px 12px',
+    fontSize: 15,
+    color: Colors.textPrimary,
+    width: '100%',
+    boxSizing: 'border-box' as const,
+    fontFamily: 'inherit',
+  };
+}
+
 export default function EditOrderModal() {
   const Colors = useTheme();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
@@ -275,15 +292,22 @@ export default function EditOrderModal() {
             Date <Text style={styles.required}>*</Text>
           </Text>
           {Platform.OS === 'web' ? (
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textMuted}
+            <input
+              type="date"
               value={deliveryDate ? deliveryDate.toISOString().split('T')[0] : ''}
-              onChangeText={(text) => {
-                const date = new Date(text);
-                if (!isNaN(date.getTime())) setDeliveryDate(date);
+              onChange={(e: any) => {
+                const text = e.target.value;
+                if (text) {
+                  const date = new Date(text + 'T00:00:00');
+                  if (!isNaN(date.getTime())) {
+                    setDeliveryDate(date);
+                    setErrors((er) => ({ ...er, deliveryDate: '' }));
+                  }
+                } else {
+                  setDeliveryDate(null);
+                }
               }}
+              style={webInputStyle(Colors, !!errors.deliveryDate)}
             />
           ) : (
             <>
@@ -311,18 +335,22 @@ export default function EditOrderModal() {
         <View style={[styles.section, { flex: 1 }]}>
           <Text style={styles.label}>Time</Text>
           {Platform.OS === 'web' ? (
-            <TextInput
-              style={styles.input}
-              placeholder="HH:MM"
-              placeholderTextColor={Colors.textMuted}
+            <input
+              type="time"
               value={deliveryTime ? deliveryTime.toTimeString().slice(0, 5) : ''}
-              onChangeText={(text) => {
-                const [hours, minutes] = text.split(':');
-                const date = new Date();
-                date.setHours(parseInt(hours) || 0);
-                date.setMinutes(parseInt(minutes) || 0);
-                setDeliveryTime(date);
+              onChange={(e: any) => {
+                const text = e.target.value;
+                if (text) {
+                  const [hours, minutes] = text.split(':');
+                  const date = new Date();
+                  date.setHours(parseInt(hours) || 0);
+                  date.setMinutes(parseInt(minutes) || 0);
+                  setDeliveryTime(date);
+                } else {
+                  setDeliveryTime(null);
+                }
               }}
+              style={webInputStyle(Colors, false)}
             />
           ) : (
             <>

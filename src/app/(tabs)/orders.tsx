@@ -39,6 +39,7 @@ export default function OrdersScreen() {
   const [collapsibleHeight, setCollapsibleHeight] = useState(0);
   const [measured, setMeasured] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const listRef = useRef<any>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -69,6 +70,14 @@ export default function OrdersScreen() {
 
   async function handleTabChange(tab: TabType) {
     setActiveTab(tab);
+    setMeasured(false);
+    scrollY.setValue(0);
+    listRef.current?.scrollToLocation?.({
+      sectionIndex: 0,
+      itemIndex: 0,
+      animated: false,
+      viewOffset: 0,
+    });
     setLoading(true);
     await load(tab);
   }
@@ -247,6 +256,7 @@ export default function OrdersScreen() {
           real height, then never shows again (measured stays true). */}
       {!measured && (
         <View
+          key={activeTab}
           style={styles.measureWrap}
           onLayout={(e) => {
             setCollapsibleHeight(e.nativeEvent.layout.height);
@@ -291,6 +301,7 @@ export default function OrdersScreen() {
         </View>
       ) : (
         <Animated.SectionList
+          ref={listRef}
           sections={sections}
           keyExtractor={(item: Order) => item.id}
           onScroll={handleScroll}
@@ -523,6 +534,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: Colors.surface,
     marginHorizontal: 16,
+    marginTop: 16,
     borderRadius: 10,
     padding: 4,
     gap: 4,
