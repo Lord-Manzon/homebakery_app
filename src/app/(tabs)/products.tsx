@@ -232,16 +232,16 @@ export default function ProductsScreen() {
                   <Text style={styles.costValue}>{costing.costLabel}</Text>
                 </View>
                 <View style={styles.costDivider} />
-                <View style={styles.costItem}>
+                <View style={styles.costItemWide}>
                   <Text style={styles.costLabel}>Price</Text>
-                  <Text style={[styles.costValue, { color: Colors.primary }]}>
+                  <Text style={[styles.costValue, { color: Colors.primary }]} numberOfLines={1}>
                     {costing.priceLabel}
                   </Text>
                 </View>
                 <View style={styles.costDivider} />
-                <View style={styles.costItem}>
+                <View style={styles.costItemWide}>
                   <Text style={styles.costLabel}>Profit</Text>
-                  <Text style={[styles.costValue, { color: Colors.success }]}>
+                  <Text style={[styles.costValue, { color: Colors.success }]} numberOfLines={1}>
                     {costing.profitLabel}
                   </Text>
                 </View>
@@ -391,6 +391,10 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  costItemWide: {
+    flex: 1.3,
+    alignItems: 'center',
+  },
   costDivider: {
     width: 1,
     height: 26,
@@ -402,7 +406,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     marginBottom: 2,
   },
   costValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.textPrimary,
   },

@@ -66,5 +66,5 @@ export function formatPriceRange(prices: number[], currency = '₱'): string {
   const low = sorted[0];
   const high = sorted[sorted.length - 1];
   if (low === high) return `${currency}${low.toFixed(2)}`;
-  return `${currency}${low.toFixed(2)} – ${currency}${high.toFixed(2)}`;
+  return `${currency}${low.toFixed(2)}–${currency}${high.toFixed(2)}`;
 }
