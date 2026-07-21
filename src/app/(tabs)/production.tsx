@@ -93,6 +93,18 @@ export default function ProductionScreen() {
 
   async function confirmComplete() {
     if (!summary) return;
+
+    // Capture what's actually about to be deducted BEFORE load() runs again
+    // and replaces `summary` with the post-production numbers — otherwise
+    // there'd be nothing left to describe in the success message.
+    const deducted = summary.ingredientRequirements
+      .map((r) => ({
+        name: r.ingredient_name,
+        amount: Math.min(r.required, r.available),
+        unit: r.unit,
+      }))
+      .filter((d) => d.amount > 0);
+
     setCompleting(true);
     const success = await completeProduction(
       summary.ingredientRequirements,
@@ -101,7 +113,7 @@ export default function ProductionScreen() {
     setCompleting(false);
 
     if (success) {
-      setSuccessMsg('Ingredients have been deducted from inventory.');
+      setSuccessMsg(buildSuccessMessage(deducted));
       await load();
     } else {
       setConfirm({
@@ -146,14 +158,41 @@ export default function ProductionScreen() {
             {/* Summary Cards */}
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
+                <View style={[styles.summaryIconWrap, { backgroundColor: Colors.primary + '18' }]}>
+                  <Ionicons name="cube-outline" size={16} color={Colors.primary} />
+                </View>
                 <Text style={styles.summaryNumber}>{summary.totalProducts}</Text>
                 <Text style={styles.summaryLabel}>Products</Text>
               </View>
               <View style={styles.summaryItem}>
+                <View style={[styles.summaryIconWrap, { backgroundColor: Colors.info + '18' }]}>
+                  <Ionicons name="layers-outline" size={16} color={Colors.info} />
+                </View>
                 <Text style={styles.summaryNumber}>{summary.totalItems}</Text>
                 <Text style={styles.summaryLabel}>Total Items</Text>
               </View>
-              <View style={styles.summaryItem}>
+              {/* This card visually reacts once there's actually something
+                  missing — tinted background + border — instead of the
+                  number just changing color inside an otherwise identical
+                  box, so it reads as an alert rather than a stat. */}
+              <View style={[
+                styles.summaryItem,
+                summary.missingIngredients > 0 && styles.summaryItemAlert,
+              ]}>
+                <View style={[
+                  styles.summaryIconWrap,
+                  {
+                    backgroundColor: summary.missingIngredients > 0
+                      ? Colors.error + '18'
+                      : Colors.textMuted + '18',
+                  },
+                ]}>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={16}
+                    color={summary.missingIngredients > 0 ? Colors.error : Colors.textMuted}
+                  />
+                </View>
                 <Text style={[
                   styles.summaryNumber,
                   summary.missingIngredients > 0 && { color: Colors.error },
@@ -189,13 +228,19 @@ export default function ProductionScreen() {
                         },
                       })}
                     >
-                      <View style={styles.alertItemRow}>
-                        <Text style={styles.alertItemName}>• {r.ingredient_name}</Text>
-                        <Ionicons name="cart-outline" size={14} color={Colors.primary} />
+                      {/* Name + detail live in one block so the action on
+                          the right can center against the block as a whole,
+                          not just the first line. */}
+                      <View style={styles.alertItemLeft}>
+                        <Text style={styles.alertItemName}>{r.ingredient_name}</Text>
+                        <Text style={styles.alertItemDetail}>
+                          Need {formatQty(r.required)} {r.unit} · Have {formatQty(r.available)} {r.unit} · Short by {formatQty(r.shortage)} {r.unit}
+                        </Text>
                       </View>
-                      <Text style={styles.alertItemDetail}>
-                        Need {formatQty(r.required)} {r.unit} · Have {formatQty(r.available)} {r.unit} · Short by {formatQty(r.shortage)} {r.unit}
-                      </Text>
+                      <View style={styles.alertItemAction}>
+                        <Ionicons name="cart-outline" size={14} color={Colors.primary} />
+                        <Text style={styles.alertItemActionText}>Restock</Text>
+                      </View>
                     </TouchableOpacity>
                   ))}
               </View>
@@ -245,31 +290,59 @@ export default function ProductionScreen() {
                 </Text>
               </TouchableOpacity>
             ) : (
-              summary.ingredientRequirements.map((req) => (
-                <TouchableOpacity
-                  key={req.ingredient_id}
-                  style={styles.ingredientCard}
-                  activeOpacity={0.7}
-                  onPress={() => router.push('/(tabs)/inventory' as any)}
-                >
-                  <View style={styles.ingredientLeft}>
-                    <Text style={styles.ingredientName}>{req.ingredient_name}</Text>
+              summary.ingredientRequirements.map((req) => {
+                // "Low" (some stock, not enough) and "Out" (zero stock) are
+                // both "insufficient", but they're very different situations
+                // for the baker — Out means this ingredient alone blocks
+                // production entirely, so it gets the stronger (red) badge.
+                const isOut = req.sufficient ? false : req.available <= 0;
+                const badgeLabel = req.sufficient ? 'OK' : isOut ? 'Out' : 'Low';
+                const badgeStyle = req.sufficient
+                  ? styles.statusSufficient
+                  : isOut
+                  ? styles.statusOut
+                  : styles.statusLow;
+                const badgeTextStyle = req.sufficient
+                  ? styles.statusSufficientText
+                  : isOut
+                  ? styles.statusOutText
+                  : styles.statusLowText;
+                // A plain colored dot instead of an Ionicons glyph — icon
+                // fonts carry their own (inconsistent) vertical metrics, so
+                // they never quite center against text no matter the
+                // flexbox alignment. A solid circle has no baseline to
+                // fight, so it centers correctly every time.
+                const dotColor = req.sufficient
+                  ? Colors.success
+                  : isOut
+                  ? Colors.error
+                  : Colors.warning;
+
+                return (
+                  <TouchableOpacity
+                    key={req.ingredient_id}
+                    style={styles.ingredientCard}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/(tabs)/inventory' as any)}
+                  >
+                    <View style={styles.ingredientTopRow}>
+                      <Text style={styles.ingredientName}>{req.ingredient_name}</Text>
+                      <View style={styles.ingredientRightGroup}>
+                        <View style={[styles.statusBadge, badgeStyle]}>
+                          <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
+                          <Text style={badgeTextStyle}>{badgeLabel}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                      </View>
+                    </View>
                     <Text style={styles.ingredientDetail}>
                       Need {formatQty(req.required)} {req.unit}
                       {' · '}
                       Have {formatQty(req.available)} {req.unit}
                     </Text>
-                  </View>
-                  <View style={[
-                    styles.statusBadge,
-                    req.sufficient ? styles.statusSufficient : styles.statusInsufficient,
-                  ]}>
-                    <Text style={req.sufficient ? styles.statusSufficientText : styles.statusInsufficientText}>
-                      {req.sufficient ? '✓ OK' : '⚠️ Low'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))
+                  </TouchableOpacity>
+                );
+              })
             )}
 
             {/* Complete Batch Button */}
@@ -360,6 +433,22 @@ function formatQty(n: number): string {
   return n % 1 === 0 ? n.toString() : n.toFixed(1);
 }
 
+// Builds the "Used 300g Butter, 3kg Flour" success line. Capped at 3 named
+// ingredients so a big batch with many ingredients doesn't turn the modal
+// into a wall of text — anything beyond that collapses into "and N more".
+function buildSuccessMessage(
+  deducted: { name: string; amount: number; unit: string }[]
+): string {
+  if (deducted.length === 0) {
+    return 'Ingredients have been deducted from inventory.';
+  }
+  const shown = deducted.slice(0, 3);
+  const rest = deducted.length - shown.length;
+  const parts = shown.map((d) => `${formatQty(d.amount)}${d.unit} ${d.name}`);
+  const list = rest > 0 ? `${parts.join(', ')}, and ${rest} more` : parts.join(', ');
+  return `Used ${list}.`;
+}
+
 const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centered: {
@@ -376,6 +465,20 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  summaryItemAlert: {
+    backgroundColor: Colors.error + '10',
+    borderColor: Colors.error + '35',
+  },
+  summaryIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
   },
   summaryNumber: { fontSize: 24, fontWeight: 'bold', color: Colors.textPrimary },
   summaryLabel: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
@@ -397,18 +500,28 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   alertTitle: { fontSize: 16, fontWeight: '700', color: Colors.error },
   alertSubtitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: 10 },
   alertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
     marginBottom: 10,
-    padding: 8,
+    padding: 10,
     backgroundColor: Colors.card,
     borderRadius: 8,
   },
-  alertItemRow: {
+  alertItemLeft: { flex: 1 },
+  alertItemName: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary, marginBottom: 2 },
+  alertItemDetail: { fontSize: 12, color: Colors.textSecondary },
+  alertItemAction: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primary + '15',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
   },
-  alertItemName: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
-  alertItemDetail: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  alertItemActionText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -449,18 +562,41 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     marginBottom: 6,
     borderRadius: 10,
     padding: 14,
+  },
+  ingredientTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 3,
+  },
+  ingredientRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   ingredientLeft: { flex: 1 },
-  ingredientName: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
-  ingredientDetail: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  ingredientName: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary, flexShrink: 1 },
+  ingredientDetail: { fontSize: 12, color: Colors.textMuted },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   statusSufficient: { backgroundColor: Colors.success + '22' },
-  statusSufficientText: { fontSize: 12, fontWeight: '600', color: Colors.success },
-  statusInsufficient: { backgroundColor: Colors.error + '22' },
-  statusInsufficientText: { fontSize: 12, fontWeight: '600', color: Colors.error },
+  statusSufficientText: { fontSize: 11, fontWeight: '700', color: Colors.success },
+  statusLow: { backgroundColor: Colors.warning + '22' },
+  statusLowText: { fontSize: 11, fontWeight: '700', color: Colors.warning },
+  statusOut: { backgroundColor: Colors.error + '22' },
+  statusOutText: { fontSize: 11, fontWeight: '700', color: Colors.error },
   completeButton: {
     flexDirection: 'row',
     alignItems: 'center',
