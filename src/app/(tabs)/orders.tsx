@@ -17,6 +17,7 @@ import { Order } from '../../types';
 
 type TabType = 'active' | 'completed';
 type FilterType = 'delivery' | 'pickup' | 'unpaid';
+
 // Converts a "HH:MM:SS" (24-hour) time string into "h:mm AM/PM".
 function formatTime(time: string): string {
   const [hourStr, minuteStr] = time.split(':');
@@ -25,6 +26,7 @@ function formatTime(time: string): string {
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
   return `${hour12}:${minuteStr} ${period}`;
 }
+
 export default function OrdersScreen() {
   const Colors = useTheme();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
@@ -35,6 +37,7 @@ export default function OrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<FilterType>>(new Set());
   const [collapsibleHeight, setCollapsibleHeight] = useState(0);
+  const [measured, setMeasured] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [confirm, setConfirm] = useState<{
     title: string;
@@ -122,7 +125,6 @@ export default function OrdersScreen() {
     });
   }
 
-  // Apply chip filters on top of whatever the active/completed tab loaded.
   const filteredOrders = orders.filter((o) => {
     const wantsDelivery = activeFilters.has('delivery');
     const wantsPickup = activeFilters.has('pickup');
@@ -151,23 +153,25 @@ export default function OrdersScreen() {
   const paidCount = orders.filter((o) => o.payment_status === 'paid').length;
   const unpaidCount = orders.filter((o) => o.payment_status === 'unpaid').length;
 
+  const FILTER_CHIPS: { key: FilterType; label: string; icon: string }[] = [
+    { key: 'delivery', label: 'Delivery', icon: 'bicycle-outline' },
+    { key: 'pickup', label: 'Pickup', icon: 'storefront-outline' },
+    { key: 'unpaid', label: 'Unpaid', icon: 'alert-circle-outline' },
+  ];
+
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: false } // height can't be native-driven, so this whole handler runs on the JS thread
+    { useNativeDriver: true }
   );
 
-  // Height and fade both track scroll position directly (0 → fully collapsed
-  // by the time you've scrolled past the collapsible section's own height),
-  // instead of snapping at a fixed threshold — that's what makes it track
-  // your finger smoothly instead of "teleporting".
-  const animatedHeight = collapsibleHeight > 0
+  const headerTranslateY = collapsibleHeight > 0
     ? scrollY.interpolate({
         inputRange: [0, collapsibleHeight],
-        outputRange: [collapsibleHeight, 0],
+        outputRange: [0, -collapsibleHeight],
         extrapolate: 'clamp',
       })
-    : undefined;
-  const animatedOpacity = collapsibleHeight > 0
+    : 0;
+  const headerOpacity = collapsibleHeight > 0
     ? scrollY.interpolate({
         inputRange: [0, collapsibleHeight * 0.7],
         outputRange: [1, 0],
@@ -175,105 +179,118 @@ export default function OrdersScreen() {
       })
     : 1;
 
-  const FILTER_CHIPS: { key: FilterType; label: string; icon: string }[] = [
-    { key: 'delivery', label: 'Delivery', icon: 'bicycle-outline' },
-    { key: 'pickup', label: 'Pickup', icon: 'storefront-outline' },
-    { key: 'unpaid', label: 'Unpaid', icon: 'alert-circle-outline' },
-  ];
+  // The header content (hero + tabs + filters) — rendered once here so the
+  // measuring pass and the real floating version stay perfectly in sync.
+  function renderHeaderContent() {
+    return (
+      <>
+        {activeTab === 'active' && (
+          <View style={styles.heroCard}>
+            <Text style={styles.heroLabel}>Expected</Text>
+            <Text style={styles.heroValue}>₱{totalRevenue.toFixed(2)}</Text>
+            <View style={styles.heroDivider} />
+            <View style={styles.heroSplitRow}>
+              <View style={styles.heroSplitItem}>
+                <Text style={styles.heroSplitValue}>{orders.length}</Text>
+                <Text style={styles.heroSplitLabel}>Active</Text>
+              </View>
+              <View style={styles.heroSplitDivider} />
+              <View style={styles.heroSplitItem}>
+                <Text style={[styles.heroSplitValue, { color: Colors.success }]}>{paidCount}</Text>
+                <Text style={styles.heroSplitLabel}>Paid</Text>
+              </View>
+              <View style={styles.heroSplitDivider} />
+              <View style={styles.heroSplitItem}>
+                <Text style={[styles.heroSplitValue, { color: Colors.error }]}>{unpaidCount}</Text>
+                <Text style={styles.heroSplitLabel}>Unpaid</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.tabs}>
+          {(['active', 'completed'] as TabType[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => handleTabChange(tab)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab && styles.tabTextActive,
+                ]}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.filterRow}>
+          {FILTER_CHIPS.map((chip) => {
+            const active = activeFilters.has(chip.key);
+            return (
+              <TouchableOpacity
+                key={chip.key}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => toggleFilter(chip.key)}
+              >
+                <Ionicons
+                  name={chip.icon as any}
+                  size={14}
+                  color={active ? '#fff' : Colors.textSecondary}
+                />
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                  {chip.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </>
+    );
+  }
 
   return (
     <View style={styles.container}>
 
-      {/* Hero summary + Tabs + Filter chips — all collapse together on scroll */}
-      <Animated.View
-        style={{ height: animatedHeight, opacity: animatedOpacity, overflow: 'hidden' }}
-      >
+      {/* Invisible measuring pass — renders once to learn the header's
+          real height, then never shows again (measured stays true). */}
+      {!measured && (
         <View
+          style={styles.measureWrap}
           onLayout={(e) => {
-            // Measure the natural height once, so we know the full range
-            // to collapse from. Only set it the first time to avoid a
-            // resize loop once height starts animating.
-            if (collapsibleHeight === 0) {
-              setCollapsibleHeight(e.nativeEvent.layout.height);
-            }
+            setCollapsibleHeight(e.nativeEvent.layout.height);
+            setMeasured(true);
           }}
         >
-          {activeTab === 'active' && (
-            <View style={styles.heroCard}>
-              <Text style={styles.heroLabel}>Expected</Text>
-              <Text style={styles.heroValue}>₱{totalRevenue.toFixed(2)}</Text>
-              <View style={styles.heroDivider} />
-              <View style={styles.heroSplitRow}>
-                <View style={styles.heroSplitItem}>
-                  <Text style={styles.heroSplitValue}>{orders.length}</Text>
-                  <Text style={styles.heroSplitLabel}>Active</Text>
-                </View>
-                <View style={styles.heroSplitDivider} />
-                <View style={styles.heroSplitItem}>
-                  <Text style={[styles.heroSplitValue, { color: Colors.success }]}>{paidCount}</Text>
-                  <Text style={styles.heroSplitLabel}>Paid</Text>
-                </View>
-                <View style={styles.heroSplitDivider} />
-                <View style={styles.heroSplitItem}>
-                  <Text style={[styles.heroSplitValue, { color: Colors.error }]}>{unpaidCount}</Text>
-                  <Text style={styles.heroSplitLabel}>Unpaid</Text>
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Tabs */}
-          <View style={styles.tabs}>
-            {(['active', 'completed'] as TabType[]).map((tab) => (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.tab, activeTab === tab && styles.tabActive]}
-                onPress={() => handleTabChange(tab)}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab && styles.tabTextActive,
-                  ]}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Filter chips */}
-          <View style={styles.filterRow}>
-            {FILTER_CHIPS.map((chip) => {
-              const active = activeFilters.has(chip.key);
-              return (
-                <TouchableOpacity
-                  key={chip.key}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                  onPress={() => toggleFilter(chip.key)}
-                >
-                  <Ionicons
-                    name={chip.icon as any}
-                    size={14}
-                    color={active ? '#fff' : Colors.textSecondary}
-                  />
-                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                    {chip.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {renderHeaderContent()}
         </View>
-      </Animated.View>
+      )}
+
+      {/* Floating header — slides up and fades as the list scrolls beneath it */}
+      {measured && (
+        <Animated.View
+          style={[
+            styles.collapsibleHeader,
+            {
+              transform: [{ translateY: headerTranslateY }],
+              opacity: headerOpacity,
+            },
+          ]}
+        >
+          {renderHeaderContent()}
+        </Animated.View>
+      )}
 
       {/* Orders List */}
       {loading ? (
-        <View style={styles.centered}>
+        <View style={[styles.centered, { paddingTop: collapsibleHeight }]}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : sections.length === 0 ? (
-        <View style={styles.centered}>
+        <View style={[styles.centered, { paddingTop: collapsibleHeight }]}>
           <Ionicons name="receipt-outline" size={48} color={Colors.border} />
           <Text style={styles.emptyText}>
             {orders.length === 0 ? `No ${activeTab} orders` : 'No orders match these filters'}
@@ -287,13 +304,14 @@ export default function OrdersScreen() {
       ) : (
         <Animated.SectionList
           sections={sections}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: Order) => item.id}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          contentContainerStyle={{ paddingTop: collapsibleHeight }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          renderSectionHeader={({ section }) => (
+          renderSectionHeader={({ section }: { section: { title: string; count: number } }) => (
             <View style={styles.sectionHeader}>
               <View style={styles.sectionDot} />
               <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -302,7 +320,7 @@ export default function OrdersScreen() {
               </Text>
             </View>
           )}
-          renderItem={({ item }) => (
+          renderItem={({ item }: { item: Order }) => (
             <TouchableOpacity
               style={styles.card}
               onPress={() =>
@@ -312,7 +330,6 @@ export default function OrdersScreen() {
                 })
               }
             >
-              {/* Delete — demoted to a small icon, not a full-width red button */}
               <TouchableOpacity
                 style={styles.deleteIcon}
                 onPress={(e) => {
@@ -323,7 +340,6 @@ export default function OrdersScreen() {
                 <Ionicons name="trash-outline" size={17} color={Colors.textMuted} />
               </TouchableOpacity>
 
-              {/* Customer & Type */}
               <View style={styles.cardTop}>
                 <Text style={styles.customerName}>{item.customer_name}</Text>
                 <View style={styles.badges}>
@@ -359,14 +375,12 @@ export default function OrdersScreen() {
                 </View>
               </View>
 
-              {/* Item Summary */}
               {itemSummaries[item.id] && (
                 <Text style={styles.itemSummary} numberOfLines={1}>
                   {itemSummaries[item.id]}
                 </Text>
               )}
 
-              {/* Time & Amount */}
               <View style={styles.cardBottom}>
                 <View style={styles.cardBottomLeft}>
                   {item.delivery_time && (
@@ -387,7 +401,6 @@ export default function OrdersScreen() {
                 </Text>
               </View>
 
-              {/* Actions — compact pills, not full-width buttons */}
               {activeTab === 'active' && (item.payment_status === 'unpaid' || !item.is_delivered) && (
                 <View style={styles.cardActions}>
                   {item.payment_status === 'unpaid' && (
@@ -418,39 +431,39 @@ export default function OrdersScreen() {
           )}
         />
       )}
-    <FAB onPress={() => router.push('/modals/add-order')} />
 
-    {/* Confirmation Dialog */}
-    <Modal
-      visible={!!confirm}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setConfirm(null)}
-    >
-      <View style={styles.confirmOverlay}>
-        <View style={styles.confirmBox}>
-          <Text style={styles.confirmTitle}>{confirm?.title}</Text>
-          <Text style={styles.confirmMessage}>{confirm?.message}</Text>
-          <View style={styles.confirmButtons}>
-            <TouchableOpacity
-              style={styles.confirmCancel}
-              onPress={() => setConfirm(null)}
-            >
-              <Text style={styles.confirmCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.confirmAction,
-                confirm?.destructive && styles.confirmActionDestructive,
-              ]}
-              onPress={confirm?.onConfirm}
-            >
-              <Text style={styles.confirmActionText}>{confirm?.actionLabel}</Text>
-            </TouchableOpacity>
+      <FAB onPress={() => router.push('/modals/add-order')} />
+
+      <Modal
+        visible={!!confirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirm(null)}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <Text style={styles.confirmTitle}>{confirm?.title}</Text>
+            <Text style={styles.confirmMessage}>{confirm?.message}</Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity
+                style={styles.confirmCancel}
+                onPress={() => setConfirm(null)}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmAction,
+                  confirm?.destructive && styles.confirmActionDestructive,
+                ]}
+                onPress={confirm?.onConfirm}
+              >
+                <Text style={styles.confirmActionText}>{confirm?.actionLabel}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
     </View>
   );
 }
@@ -459,12 +472,27 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+    position: 'relative',
+  },
+  measureWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    opacity: 0,
+  },
+  collapsibleHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: Colors.background,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
   },
 
   heroCard: {
@@ -575,6 +603,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
+    backgroundColor: Colors.background,
   },
   sectionDot: {
     width: 8,
