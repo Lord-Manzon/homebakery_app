@@ -20,6 +20,8 @@ export const ThemePalettes = {
     error: '#E74C3C',
     warning: '#F39C12',
     info: '#2980B9',
+    primarySoft: '#F0AD7A',
+    surface: '#FAF8F5',
     infoBackground: '#EBF5FB',
     successBackground: '#EAFAF1',
     errorBackground: '#FDEDEC',

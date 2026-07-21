@@ -2,12 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  LayoutAnimation,
   Modal,
+  Platform,
   RefreshControl,
   SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View
 } from 'react-native';
 import FAB from '../../components/common/FAB';
@@ -15,8 +18,26 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { deleteOrder, getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
 import { Order } from '../../types';
 
-type TabType = 'active' | 'completed';
+// LayoutAnimation needs to be explicitly enabled on Android (iOS and web
+// don't need this step — iOS supports it by default, and web silently
+// no-ops it, which just means no animation there rather than a crash).
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
+type TabType = 'active' | 'completed';
+type FilterType = 'delivery' | 'pickup' | 'unpaid';
+// Converts a "HH:MM:SS" (24-hour) time string into "h:mm AM/PM".
+function formatTime(time: string): string {
+  const [hourStr, minuteStr] = time.split(':');
+  const hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${minuteStr} ${period}`;
+}
 export default function OrdersScreen() {
   const Colors = useTheme();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
@@ -25,6 +46,8 @@ export default function OrdersScreen() {
   const [itemSummaries, setItemSummaries] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<Set<FilterType>>(new Set());
+  const [heroVisible, setHeroVisible] = useState(true);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -57,6 +80,18 @@ export default function OrdersScreen() {
     setActiveTab(tab);
     setLoading(true);
     await load(tab);
+  }
+
+  function toggleFilter(filter: FilterType) {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(filter)) {
+        next.delete(filter);
+      } else {
+        next.add(filter);
+      }
+      return next;
+    });
   }
 
   function handleMarkPaid(order: Order) {
@@ -99,7 +134,24 @@ export default function OrdersScreen() {
     });
   }
 
-  const grouped = groupOrdersByDate(orders);
+  // Apply chip filters on top of whatever the active/completed tab loaded.
+  const filteredOrders = orders.filter((o) => {
+    const wantsDelivery = activeFilters.has('delivery');
+    const wantsPickup = activeFilters.has('pickup');
+    const wantsUnpaid = activeFilters.has('unpaid');
+
+    if (wantsDelivery || wantsPickup) {
+      const matchesType =
+        (wantsDelivery && o.order_type === 'delivery') ||
+        (wantsPickup && o.order_type === 'pickup');
+      if (!matchesType) return false;
+    }
+    if (wantsUnpaid && o.payment_status !== 'unpaid') return false;
+
+    return true;
+  });
+
+  const grouped = groupOrdersByDate(filteredOrders);
 
   const sections = grouped.map((group) => ({
     title: group.label,
@@ -111,34 +163,49 @@ export default function OrdersScreen() {
   const paidCount = orders.filter((o) => o.payment_status === 'paid').length;
   const unpaidCount = orders.filter((o) => o.payment_status === 'unpaid').length;
 
+  // Collapse the hero card once the list is scrolled down a bit, so more
+  // orders are visible on screen; bring it back once scrolled near the top.
+  function handleScroll(e: { nativeEvent: { contentOffset: { y: number } } }) {
+    const y = e.nativeEvent.contentOffset.y;
+    if (y > 40 && heroVisible) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setHeroVisible(false);
+    } else if (y <= 40 && !heroVisible) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setHeroVisible(true);
+    }
+  }
+
+  const FILTER_CHIPS: { key: FilterType; label: string; icon: string }[] = [
+    { key: 'delivery', label: 'Delivery', icon: 'bicycle-outline' },
+    { key: 'pickup', label: 'Pickup', icon: 'storefront-outline' },
+    { key: 'unpaid', label: 'Unpaid', icon: 'alert-circle-outline' },
+  ];
+
   return (
     <View style={styles.container}>
-      
 
-      {/* Summary */}
-      {activeTab === 'active' && (
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryNumber}>{orders.length}</Text>
-            <Text style={styles.summaryLabel}>Active</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryNumber}>
-              ₱{totalRevenue.toFixed(0)}
-            </Text>
-            <Text style={styles.summaryLabel}>Expected</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryNumber, { color: Colors.success }]}>
-              {paidCount}
-            </Text>
-            <Text style={styles.summaryLabel}>Paid</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryNumber, { color: Colors.error }]}>
-              {unpaidCount}
-            </Text>
-            <Text style={styles.summaryLabel}>Unpaid</Text>
+      {/* Hero summary — collapses on scroll */}
+      {activeTab === 'active' && heroVisible && (
+        <View style={styles.heroCard}>
+          <Text style={styles.heroLabel}>Expected</Text>
+          <Text style={styles.heroValue}>₱{totalRevenue.toFixed(2)}</Text>
+          <View style={styles.heroDivider} />
+          <View style={styles.heroSplitRow}>
+            <View style={styles.heroSplitItem}>
+              <Text style={styles.heroSplitValue}>{orders.length}</Text>
+              <Text style={styles.heroSplitLabel}>Active</Text>
+            </View>
+            <View style={styles.heroSplitDivider} />
+            <View style={styles.heroSplitItem}>
+              <Text style={[styles.heroSplitValue, { color: Colors.success }]}>{paidCount}</Text>
+              <Text style={styles.heroSplitLabel}>Paid</Text>
+            </View>
+            <View style={styles.heroSplitDivider} />
+            <View style={styles.heroSplitItem}>
+              <Text style={[styles.heroSplitValue, { color: Colors.error }]}>{unpaidCount}</Text>
+              <Text style={styles.heroSplitLabel}>Unpaid</Text>
+            </View>
           </View>
         </View>
       )}
@@ -163,6 +230,29 @@ export default function OrdersScreen() {
         ))}
       </View>
 
+      {/* Filter chips */}
+      <View style={styles.filterRow}>
+        {FILTER_CHIPS.map((chip) => {
+          const active = activeFilters.has(chip.key);
+          return (
+            <TouchableOpacity
+              key={chip.key}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => toggleFilter(chip.key)}
+            >
+              <Ionicons
+                name={chip.icon as any}
+                size={14}
+                color={active ? '#fff' : Colors.textSecondary}
+              />
+              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                {chip.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       {/* Orders List */}
       {loading ? (
         <View style={styles.centered}>
@@ -170,9 +260,11 @@ export default function OrdersScreen() {
         </View>
       ) : sections.length === 0 ? (
         <View style={styles.centered}>
-          <Ionicons name="receipt-outline" size={48} color="#ddd" />
-          <Text style={styles.emptyText}>No {activeTab} orders</Text>
-          {activeTab === 'active' && (
+          <Ionicons name="receipt-outline" size={48} color={Colors.border} />
+          <Text style={styles.emptyText}>
+            {orders.length === 0 ? `No ${activeTab} orders` : 'No orders match these filters'}
+          </Text>
+          {activeTab === 'active' && orders.length === 0 && (
             <Text style={styles.emptySubtext}>
               Tap + to create your first order
             </Text>
@@ -182,6 +274,8 @@ export default function OrdersScreen() {
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -204,6 +298,17 @@ export default function OrdersScreen() {
                 })
               }
             >
+              {/* Delete — demoted to a small icon, not a full-width red button */}
+              <TouchableOpacity
+                style={styles.deleteIcon}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleDelete(item);
+                }}
+              >
+                <Ionicons name="trash-outline" size={17} color={Colors.textMuted} />
+              </TouchableOpacity>
+
               {/* Customer & Type */}
               <View style={styles.cardTop}>
                 <Text style={styles.customerName}>{item.customer_name}</Text>
@@ -253,7 +358,7 @@ export default function OrdersScreen() {
                   {item.delivery_time && (
                     <Text style={styles.deliveryTime}>
                       <Ionicons name="time-outline" size={12} color={Colors.textMuted} />
-                      {' '}{item.delivery_time.slice(0, 5)}
+                      {' '}{formatTime(item.delivery_time)}
                     </Text>
                   )}
                   {item.delivery_address && (
@@ -268,54 +373,31 @@ export default function OrdersScreen() {
                 </Text>
               </View>
 
-              {/* Actions */}
-              {activeTab === 'active' && (
+              {/* Actions — compact pills, not full-width buttons */}
+              {activeTab === 'active' && (item.payment_status === 'unpaid' || !item.is_delivered) && (
                 <View style={styles.cardActions}>
                   {item.payment_status === 'unpaid' && (
                     <TouchableOpacity
-                      style={[styles.actionButton, styles.actionPaid]}
+                      style={[styles.pillButton, styles.pillPaid]}
                       onPress={(e) => {
                         e.stopPropagation();
                         handleMarkPaid(item);
                       }}
                     >
-                      <Text style={styles.actionPaidText}>Mark Paid</Text>
+                      <Text style={styles.pillPaidText}>Mark Paid</Text>
                     </TouchableOpacity>
                   )}
                   {!item.is_delivered && (
                     <TouchableOpacity
-                      style={[styles.actionButton, styles.actionDelivered]}
+                      style={[styles.pillButton, styles.pillDelivered]}
                       onPress={(e) => {
                         e.stopPropagation();
                         handleMarkDelivered(item);
                       }}
                     >
-                      <Text style={styles.actionDeliveredText}>Mark Delivered</Text>
+                      <Text style={styles.pillDeliveredText}>Mark Delivered</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.actionCancel]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleDelete(item);
-                    }}
-                  >
-                    <Text style={styles.actionCancelText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {activeTab === 'completed' && (
-                <View style={styles.cardActions}>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.actionCancel]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleDelete(item);
-                    }}
-                  >
-                    <Text style={styles.actionCancelText}>Delete</Text>
-                  </TouchableOpacity>
                 </View>
               )}
             </TouchableOpacity>
@@ -370,53 +452,67 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     justifyContent: 'center',
     paddingTop: 60,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
+
+  heroCard: {
     backgroundColor: Colors.card,
+    borderRadius: 14,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
+    padding: 18,
   },
-  
-  summaryRow: {
+  heroLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginBottom: 2,
+  },
+  heroValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 14,
+  },
+  heroDivider: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  heroSplitRow: {
     flexDirection: 'row',
-    backgroundColor: Colors.card,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 8,
+    paddingTop: 12,
   },
-  summaryItem: {
+  heroSplitItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: Colors.background,
-    borderRadius: 10,
-    paddingVertical: 8,
   },
-  summaryNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  heroSplitDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+  },
+  heroSplitValue: {
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.textPrimary,
   },
-  summaryLabel: {
+  heroSplitLabel: {
     fontSize: 11,
     color: Colors.textMuted,
     marginTop: 2,
   },
+
   tabs: {
     flexDirection: 'row',
-    backgroundColor: Colors.card,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 8,
+    backgroundColor: Colors.surface,
+    marginHorizontal: 16,
+    borderRadius: 10,
+    padding: 4,
+    gap: 4,
+    marginBottom: 10,
   },
   tab: {
     flex: 1,
     paddingVertical: 8,
     borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: Colors.background,
   },
   tabActive: {
     backgroundColor: Colors.primary,
@@ -429,6 +525,36 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   tabTextActive: {
     color: '#fff',
   },
+
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  filterChipTextActive: {
+    color: '#fff',
+  },
+
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -457,18 +583,25 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     marginBottom: 8,
     borderRadius: 12,
     padding: 14,
+    position: 'relative',
+  },
+  deleteIcon: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    padding: 4,
+    zIndex: 1,
   },
   cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: 'column',
     marginBottom: 8,
+    paddingRight: 28,
   },
   customerName: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
-    flex: 1,
+    marginBottom: 6,
   },
   itemSummary: {
     fontSize: 13,
@@ -477,6 +610,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   },
   badges: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
   },
   badge: {
@@ -485,7 +619,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     borderRadius: 6,
   },
   badgeDelivery: {
-    backgroundColor: Colors.info + '22',
+    backgroundColor: Colors.infoBackground,
   },
   badgeDeliveryText: {
     fontSize: 11,
@@ -493,7 +627,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     color: Colors.info,
   },
   badgePickup: {
-    backgroundColor: Colors.success + '22',
+    backgroundColor: Colors.successBackground,
   },
   badgePickupText: {
     fontSize: 11,
@@ -501,7 +635,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     color: Colors.success,
   },
   badgePaid: {
-    backgroundColor: Colors.success + '22',
+    backgroundColor: Colors.successBackground,
   },
   badgePaidText: {
     fontSize: 11,
@@ -509,7 +643,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     color: Colors.success,
   },
   badgeUnpaid: {
-    backgroundColor: Colors.error + '22',
+    backgroundColor: Colors.errorBackground,
   },
   badgeUnpaidText: {
     fontSize: 11,
@@ -517,7 +651,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     color: Colors.error,
   },
   badgeDelivered: {
-    backgroundColor: Colors.primary + '22',
+    backgroundColor: Colors.primarySoft + '33',
   },
   badgeDeliveredText: {
     fontSize: 11,
@@ -547,6 +681,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     fontWeight: '700',
     color: Colors.textPrimary,
   },
+
   cardActions: {
     flexDirection: 'row',
     gap: 8,
@@ -555,36 +690,26 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },
-  actionButton: {
-    flex: 1,
+  pillButton: {
+    paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  actionPaid: {
-    backgroundColor: Colors.success + '22',
-  },
-  actionPaidText: {
+  pillPaid: {},
+  pillPaidText: {
     fontSize: 12,
     fontWeight: '600',
     color: Colors.success,
   },
-  actionDelivered: {
-    backgroundColor: Colors.info + '22',
-  },
-  actionDeliveredText: {
+  pillDelivered: {},
+  pillDeliveredText: {
     fontSize: 12,
     fontWeight: '600',
     color: Colors.info,
   },
-  actionCancel: {
-    backgroundColor: Colors.error + '22',
-  },
-  actionCancelText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.error,
-  },
+
   loadingText: {
     fontSize: 16,
     color: Colors.textMuted,
@@ -597,7 +722,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 13,
-    color: '#bbb',
+    color: Colors.textMuted,
     marginTop: 4,
   },
   confirmOverlay: {
@@ -633,7 +758,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
   },
   confirmCancelText: {
