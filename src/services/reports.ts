@@ -59,22 +59,22 @@ export function getDateRange(
     weekStart.setDate(now.getDate() - now.getDay()); // back up to Sunday
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6); // forward to Saturday
-    const weekEndStr = toDateStr(weekEnd);
-    // Don't show future days for the CURRENT week — but a past week (chosen
-    // via referenceDate) already ends before today, so this has no effect there.
+    // Full Sunday–Saturday range, including future days within the week.
+    // Safe to include future dates because the summary queries already
+    // filter to order_status = 'completed' — a future date can only appear
+    // here if an order was genuinely completed against it.
     return {
       startDate: toDateStr(weekStart),
-      endDate: weekEndStr > todayStr ? todayStr : weekEndStr,
+      endDate: toDateStr(weekEnd),
     };
   }
 
   if (period === 'month') {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const monthEndStr = toDateStr(monthEnd);
     return {
       startDate: toDateStr(monthStart),
-      endDate: monthEndStr > todayStr ? todayStr : monthEndStr,
+      endDate: toDateStr(monthEnd),
     };
   }
 
