@@ -24,16 +24,30 @@ export type ProductPerformance = {
   totalRevenue: number;
 };
 
-// Returns YYYY-MM-DD string
+// Returns YYYY-MM-DD string using LOCAL date components — NOT toISOString(),
+// which converts to UTC first. In a positive UTC-offset timezone (e.g. the
+// Philippines, UTC+8), local midnight becomes "yesterday 4pm UTC", silently
+// shifting every date range back by one day.
 function toDateStr(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-export function getDateRange(period: 'today' | 'week' | 'month' | 'custom', customStart?: string, customEnd?: string): {
+export function getDateRange(
+  period: 'today' | 'week' | 'month' | 'all' | 'custom',
+  customStart?: string,
+  customEnd?: string,
+  referenceDate?: string
+): {
   startDate: string;
   endDate: string;
 } {
-  const now = new Date();
+  // referenceDate anchors "week"/"month" to a date the user tapped (e.g. the
+  // 15th), instead of always computing relative to right now.
+  const now = referenceDate ? new Date(referenceDate + 'T00:00:00') : new Date();
+  const todayStr = toDateStr(new Date());
 
   if (period === 'today') {
     const today = toDateStr(now);
@@ -42,19 +56,36 @@ export function getDateRange(period: 'today' | 'week' | 'month' | 'custom', cust
 
   if (period === 'week') {
     const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
-    return { startDate: toDateStr(weekStart), endDate: toDateStr(now) };
+    weekStart.setDate(now.getDate() - now.getDay()); // back up to Sunday
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6); // forward to Saturday
+    const weekEndStr = toDateStr(weekEnd);
+    // Don't show future days for the CURRENT week — but a past week (chosen
+    // via referenceDate) already ends before today, so this has no effect there.
+    return {
+      startDate: toDateStr(weekStart),
+      endDate: weekEndStr > todayStr ? todayStr : weekEndStr,
+    };
   }
 
   if (period === 'month') {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { startDate: toDateStr(monthStart), endDate: toDateStr(now) };
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const monthEndStr = toDateStr(monthEnd);
+    return {
+      startDate: toDateStr(monthStart),
+      endDate: monthEndStr > todayStr ? todayStr : monthEndStr,
+    };
+  }
+
+  if (period === 'all') {
+    return { startDate: '2000-01-01', endDate: todayStr };
   }
 
   // custom
   return {
-    startDate: customStart ?? toDateStr(now),
-    endDate: customEnd ?? toDateStr(now),
+    startDate: customStart ?? todayStr,
+    endDate: customEnd ?? todayStr,
   };
 }
 

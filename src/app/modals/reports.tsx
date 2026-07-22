@@ -23,7 +23,7 @@ import {
   getProductPerformance,
 } from '../../services/reports';
 
-type PeriodTab = 'today' | 'week' | 'month' | 'custom';
+type PeriodTab = 'today' | 'week' | 'month' | 'all' | 'custom';
 
 export default function ReportsModal() {
   const Colors = useTheme();
@@ -34,6 +34,9 @@ export default function ReportsModal() {
   const [period, setPeriod] = useState<PeriodTab>('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  // Anchors "This Week"/"This Month" to a tapped calendar date instead of
+  // always using the real current date. Reset to null by "Today".
+  const [referenceDate, setReferenceDate] = useState<string | null>(null);
 
   const [calendarYear, setCalendarYear] = useState(now.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(now.getMonth() + 1);
@@ -51,20 +54,22 @@ export default function ReportsModal() {
       getMonthIndicators(calendarYear, calendarMonth),
     ]);
     setIndicators(ind);
-    await loadPeriodData(period, customStart, customEnd);
+    await loadPeriodData(period, customStart, customEnd, referenceDate ?? undefined);
     setLoading(false);
   }
 
   async function loadPeriodData(
     p: PeriodTab,
     cStart?: string,
-    cEnd?: string
+    cEnd?: string,
+    refDate?: string
   ) {
     setSummaryLoading(true);
     const { startDate, endDate } = getDateRange(
       p,
       cStart || undefined,
-      cEnd || undefined
+      cEnd || undefined,
+      refDate
     );
     const [s, prod] = await Promise.all([
       getPeriodSummary(startDate, endDate),
@@ -78,9 +83,14 @@ export default function ReportsModal() {
   useFocusEffect(useCallback(() => { loadAll(); }, []));
 
   function handlePeriodChange(p: PeriodTab) {
+    // "Today" always means the real current day — any other tab keeps
+    // whatever date was last tapped on the calendar, so the highlighted
+    // day on the calendar doesn't disappear when switching tabs.
+    const nextReferenceDate = p === 'today' ? null : referenceDate;
     setPeriod(p);
-    setSelectedDate(null);
-    loadPeriodData(p, customStart, customEnd);
+    if (p === 'today') setSelectedDate(null);
+    setReferenceDate(nextReferenceDate);
+    loadPeriodData(p, customStart, customEnd, nextReferenceDate ?? undefined);
   }
 
   async function handleMonthChange(month: { year: number; month: number }) {
@@ -90,10 +100,12 @@ export default function ReportsModal() {
     setIndicators(ind);
   }
 
-  // Tapping a date sets it as a custom single-day range and updates summary
+  // Tapping a date sets it as a custom single-day range and updates summary.
+  // It also becomes the anchor for "This Week"/"This Month" if picked next.
   function handleDayPress(day: { dateString: string }) {
     const date = day.dateString;
     setSelectedDate(date);
+    setReferenceDate(date);
     setPeriod('custom');
     setCustomStart(date);
     setCustomEnd(date);
@@ -135,9 +147,27 @@ export default function ReportsModal() {
 
   // Label shown above the summary section
   function periodLabel(): string {
+    const shortDate = (d: string) =>
+      new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
     if (period === 'today') return 'Today';
-    if (period === 'week') return 'This Week';
-    if (period === 'month') return 'This Month';
+    if (period === 'week') {
+      if (referenceDate) {
+        const { startDate, endDate } = getDateRange('week', undefined, undefined, referenceDate);
+        return `Week of ${shortDate(startDate)} – ${shortDate(endDate)}`;
+      }
+      return 'This Week';
+    }
+    if (period === 'month') {
+      if (referenceDate) {
+        return new Date(referenceDate + 'T00:00:00').toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        });
+      }
+      return 'This Month';
+    }
+    if (period === 'all') return 'All Time';
     if (selectedDate) {
       return new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
         weekday: 'long',
@@ -165,11 +195,13 @@ export default function ReportsModal() {
         {/* Calendar */}
         <View style={styles.calendarCard}>
           <Calendar
+            key={Colors.background}
             current={`${calendarYear}-${String(calendarMonth).padStart(2, '0')}-01`}
             onMonthChange={handleMonthChange}
             onDayPress={handleDayPress}
             markingType="multi-dot"
             markedDates={markedDates}
+            style={{ backgroundColor: Colors.card }}
             theme={{
               backgroundColor: Colors.card,
               calendarBackground: Colors.card,
@@ -205,20 +237,20 @@ export default function ReportsModal() {
         {/* Period Tabs */}
         <View style={styles.periodCard}>
           <View style={styles.periodTabs}>
-            {(['today', 'week', 'month'] as PeriodTab[]).map((p) => (
+            {(['today', 'week', 'month', 'all'] as PeriodTab[]).map((p) => (
               <TouchableOpacity
                 key={p}
                 style={[
                   styles.periodTab,
-                  period === p && !selectedDate && styles.periodTabActive,
+                  period === p && styles.periodTabActive,
                 ]}
                 onPress={() => handlePeriodChange(p)}
               >
                 <Text style={[
                   styles.periodTabText,
-                  period === p && !selectedDate && styles.periodTabTextActive,
+                  period === p && styles.periodTabTextActive,
                 ]}>
-                  {p === 'today' ? 'Today' : p === 'week' ? 'This Week' : 'This Month'}
+                  {p === 'today' ? 'Today' : p === 'week' ? 'This Week' : p === 'month' ? 'This Month' : 'All Time'}
                 </Text>
               </TouchableOpacity>
             ))}
