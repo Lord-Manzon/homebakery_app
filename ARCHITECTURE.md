@@ -39,6 +39,14 @@ data. That will require, in one dedicated pass (not yet started):
    state. Session persistence via `AsyncStorage` is already configured in
    `src/lib/supabase.ts` and shouldn't need changes for this.
 
+## One more schema fact worth knowing
+
+The database has no foreign key constraints — `order_items.order_id`,
+`recipe_ingredients.ingredient_id`, `inventory_movements.ingredient_id`, etc.
+are all `uuid, NOT NULL` with nothing enforcing the relationship at the
+database level. Referential integrity is currently kept only by app code
+convention. Don't assume the database will reject an orphaned reference.
+
 ## What this means for changes you make right now
 
 - **Do** write new service functions and features assuming the current
