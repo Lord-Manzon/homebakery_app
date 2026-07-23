@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getSettings } from '../../services/settings';
+import { eventBus } from '../../utils/eventBus';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.72;
 
@@ -224,7 +225,17 @@ export default function TabsLayout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="storefront-outline" size={size} color={color} />
             ),
-            headerRight: () => <MenuButton />,
+            headerRight: () => (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => eventBus.emit('products:showGlossary')}
+                  style={{ marginRight: 14 }}
+                >
+                  <Ionicons name="information-circle-outline" size={24} color={Colors.textPrimary} />
+                </TouchableOpacity>
+                <MenuButton />
+              </View>
+            ),
           }}
         />
         <Tabs.Screen
