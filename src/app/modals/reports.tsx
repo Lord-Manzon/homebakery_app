@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ReportsCalendarDay, ReportsDayMarking } from '../../components/ReportsCalendarDay';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   DayIndicator,
@@ -41,6 +42,25 @@ export default function ReportsModal() {
   const [calendarYear, setCalendarYear] = useState(now.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(now.getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const todayDateStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const weekBandDates = useMemo(() => {
+    if (period !== 'week') return [] as string[];
+    const anchor = referenceDate ? new Date(referenceDate + 'T00:00:00') : new Date();
+    const start = new Date(anchor);
+    start.setDate(anchor.getDate() - anchor.getDay());
+    const out: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    }
+    return out;
+  }, [period, referenceDate]);
 
   const [indicators, setIndicators] = useState<Record<string, DayIndicator>>({});
   const [summary, setSummary] = useState<PeriodSummary | null>(null);
@@ -118,22 +138,29 @@ export default function ReportsModal() {
     }
   }
 
-  // Build marked dates for calendar dots
-  const markedDates: Record<string, any> = {};
+  // markingType="custom" means react-native-calendars renders nothing on
+  // its own — ReportsCalendarDay reads these fields directly per date.
+  const markedDates: Record<string, ReportsDayMarking> = {};
+
   Object.entries(indicators).forEach(([date, ind]) => {
-    const dots = [];
+    const dots: ReportsDayMarking['dots'] = [];
     if (ind.hasProfit) dots.push({ key: 'profit', color: Colors.success });
     if (ind.hasLoss) dots.push({ key: 'loss', color: Colors.error });
     if (ind.hasDeliveries) dots.push({ key: 'delivery', color: Colors.info });
     if (dots.length > 0) markedDates[date] = { dots };
   });
 
-  // Highlight the selected date on top of any existing dots
+  weekBandDates.forEach((date, idx) => {
+    markedDates[date] = {
+      ...(markedDates[date] ?? {}),
+      weekBand: idx === 0 ? 'start' : idx === weekBandDates.length - 1 ? 'end' : 'middle',
+    };
+  });
+
   if (selectedDate) {
     markedDates[selectedDate] = {
       ...(markedDates[selectedDate] ?? {}),
       selected: true,
-      selectedColor: Colors.primary,
     };
   }
 
@@ -199,8 +226,16 @@ export default function ReportsModal() {
             current={`${calendarYear}-${String(calendarMonth).padStart(2, '0')}-01`}
             onMonthChange={handleMonthChange}
             onDayPress={handleDayPress}
-            markingType="multi-dot"
+            markingType="custom"
             markedDates={markedDates}
+            dayComponent={(props: any) => (
+              <ReportsCalendarDay
+                {...props}
+                isToday={props.date?.dateString === todayDateStr}
+                otherMonth={props.date?.month !== calendarMonth}
+                onPress={(d) => d && handleDayPress({ dateString: d.dateString })}
+              />
+            )}
             style={{ backgroundColor: Colors.card }}
             theme={{
               backgroundColor: Colors.card,
@@ -208,6 +243,7 @@ export default function ReportsModal() {
               textSectionTitleColor: Colors.textMuted,
               selectedDayBackgroundColor: Colors.primary,
               selectedDayTextColor: '#fff',
+              todayBackgroundColor: 'transparent',
               todayTextColor: Colors.primary,
               dayTextColor: Colors.textPrimary,
               monthTextColor: Colors.textPrimary,
@@ -215,7 +251,16 @@ export default function ReportsModal() {
               textDayFontWeight: '500',
               textMonthFontWeight: '700',
               textDayHeaderFontWeight: '600',
-            }}
+              'stylesheet.day.multi-dot': {
+                dot: {
+                  width: 6,
+                  height: 6,
+                  marginTop: 1,
+                  marginHorizontal: 1.5,
+                  borderRadius: 3,
+                },
+              },
+            } as any}
           />
           {/* Legend */}
           <View style={styles.legend}>
