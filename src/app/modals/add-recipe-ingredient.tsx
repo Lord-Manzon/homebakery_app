@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { CheckCircle2 } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -141,7 +141,7 @@ export default function AddRecipeIngredientModal() {
         )}
         {selectedIngredient && (
           <View style={styles.selectedBadge}>
-            <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+            <CheckCircle2 size={16} color={Colors.success} />
             <Text style={styles.selectedText}>
               {selectedIngredient.name} selected
             </Text>

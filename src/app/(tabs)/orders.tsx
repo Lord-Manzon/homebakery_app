@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { AlertCircle, Bike, Clock, MapPin, Receipt, Store, type LucideIcon } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -150,10 +150,10 @@ export default function OrdersScreen() {
   const paidCount = orders.filter((o) => o.payment_status === 'paid').length;
   const unpaidCount = orders.filter((o) => o.payment_status === 'unpaid').length;
 
-  const FILTER_CHIPS: { key: FilterType; label: string; icon: string }[] = [
-    { key: 'delivery', label: 'Delivery', icon: 'bicycle-outline' },
-    { key: 'pickup', label: 'Pickup', icon: 'storefront-outline' },
-    { key: 'unpaid', label: 'Unpaid', icon: 'alert-circle-outline' },
+  const FILTER_CHIPS: { key: FilterType; label: string; icon: LucideIcon }[] = [
+    { key: 'delivery', label: 'Delivery', icon: Bike },
+    { key: 'pickup', label: 'Pickup', icon: Store },
+    { key: 'unpaid', label: 'Unpaid', icon: AlertCircle },
   ];
 
   const handleScroll = Animated.event(
@@ -233,8 +233,7 @@ export default function OrdersScreen() {
                 style={[styles.filterChip, active && styles.filterChipActive]}
                 onPress={() => toggleFilter(chip.key)}
               >
-                <Ionicons
-                  name={chip.icon as any}
+                <chip.icon
                   size={14}
                   color={active ? '#fff' : Colors.textSecondary}
                 />
@@ -289,7 +288,7 @@ export default function OrdersScreen() {
         </View>
       ) : sections.length === 0 ? (
         <View style={[styles.centered, { paddingTop: collapsibleHeight }]}>
-          <Ionicons name="receipt-outline" size={48} color={Colors.border} />
+          <Receipt size={48} color={Colors.border} />
           <Text style={styles.emptyText}>
             {orders.length === 0 ? `No ${activeTab} orders` : 'No orders match these filters'}
           </Text>
@@ -374,13 +373,13 @@ export default function OrdersScreen() {
                 <View style={styles.cardBottomLeft}>
                   {item.delivery_time && (
                     <Text style={styles.deliveryTime}>
-                      <Ionicons name="time-outline" size={12} color={Colors.textMuted} />
+                      <Clock size={12} color={Colors.textMuted} />
                       {' '}{formatTime(item.delivery_time)}
                     </Text>
                   )}
                   {item.delivery_address && (
                     <Text style={styles.address} numberOfLines={1}>
-                      <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
+                      <MapPin size={12} color={Colors.textMuted} />
                       {' '}{item.delivery_address}
                     </Text>
                   )}

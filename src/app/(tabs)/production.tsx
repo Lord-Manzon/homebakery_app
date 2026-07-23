@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, Flame, Layers, Package, ShoppingCart } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -147,7 +147,7 @@ export default function ProductionScreen() {
 >
         {hasNoOrders ? (
           <View style={styles.centered}>
-            <Ionicons name="flame-outline" size={48} color="#ddd" />
+            <Flame size={48} color="#ddd" />
             <Text style={styles.emptyText}>No active orders</Text>
             <Text style={styles.emptySubtext}>
               Production summary will appear when you have active orders
@@ -159,14 +159,14 @@ export default function ProductionScreen() {
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
                 <View style={[styles.summaryIconWrap, { backgroundColor: Colors.primary + '18' }]}>
-                  <Ionicons name="cube-outline" size={16} color={Colors.primary} />
+                  <Package size={16} color={Colors.primary} />
                 </View>
                 <Text style={styles.summaryNumber}>{summary.totalProducts}</Text>
                 <Text style={styles.summaryLabel}>Products</Text>
               </View>
               <View style={styles.summaryItem}>
                 <View style={[styles.summaryIconWrap, { backgroundColor: Colors.info + '18' }]}>
-                  <Ionicons name="layers-outline" size={16} color={Colors.info} />
+                  <Layers size={16} color={Colors.info} />
                 </View>
                 <Text style={styles.summaryNumber}>{summary.totalItems}</Text>
                 <Text style={styles.summaryLabel}>Total Items</Text>
@@ -187,8 +187,7 @@ export default function ProductionScreen() {
                       : Colors.textMuted + '18',
                   },
                 ]}>
-                  <Ionicons
-                    name="alert-circle-outline"
+                  <AlertCircle
                     size={16}
                     color={summary.missingIngredients > 0 ? Colors.error : Colors.textMuted}
                   />
@@ -207,7 +206,7 @@ export default function ProductionScreen() {
             {summary.missingIngredients > 0 && (
               <View style={styles.alertCard}>
                 <View style={styles.alertHeader}>
-                  <Ionicons name="warning-outline" size={20} color={Colors.error} />
+                  <AlertTriangle size={20} color={Colors.error} />
                   <Text style={styles.alertTitle}>Missing Ingredients</Text>
                 </View>
                 <Text style={styles.alertSubtitle}>
@@ -238,7 +237,7 @@ export default function ProductionScreen() {
                         </Text>
                       </View>
                       <View style={styles.alertItemAction}>
-                        <Ionicons name="cart-outline" size={14} color={Colors.primary} />
+                        <ShoppingCart size={14} color={Colors.primary} />
                         <Text style={styles.alertItemActionText}>Restock</Text>
                       </View>
                     </TouchableOpacity>
@@ -332,7 +331,7 @@ export default function ProductionScreen() {
                           <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
                           <Text style={badgeTextStyle}>{badgeLabel}</Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                        <ChevronRight size={18} color={Colors.textMuted} />
                       </View>
                     </View>
                     <Text style={styles.ingredientDetail}>
@@ -358,7 +357,7 @@ export default function ProductionScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                  <CheckCircle2 size={20} color="#fff" />
                   <Text style={styles.completeButtonText}>
                     Complete Batch
                   </Text>

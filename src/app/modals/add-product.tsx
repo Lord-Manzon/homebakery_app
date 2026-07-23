@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Camera, Image as ImageIcon, Pencil } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
@@ -140,12 +140,12 @@ export default function AddProductModal() {
             <Image source={{ uri: localImageUri }} style={styles.photo} contentFit="cover" />
           ) : (
             <View style={styles.photoPlaceholder}>
-              <Ionicons name="camera-outline" size={28} color={Colors.textMuted} />
+              <Camera size={28} color={Colors.textMuted} />
               <Text style={styles.photoPlaceholderText}>Add Photo</Text>
             </View>
           )}
           <View style={styles.photoEditBadge}>
-            <Ionicons name="pencil" size={14} color="#fff" />
+            <Pencil size={14} color="#fff" />
           </View>
         </TouchableOpacity>
       </View>
@@ -298,11 +298,11 @@ export default function AddProductModal() {
         >
           <View style={styles.photoModalBox}>
             <TouchableOpacity style={styles.photoModalOption} onPress={pickFromCamera}>
-              <Ionicons name="camera-outline" size={20} color={Colors.textPrimary} />
+              <Camera size={20} color={Colors.textPrimary} />
               <Text style={styles.photoModalOptionText}>Take Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.photoModalOption} onPress={pickFromGallery}>
-              <Ionicons name="image-outline" size={20} color={Colors.textPrimary} />
+              <ImageIcon size={20} color={Colors.textPrimary} />
               <Text style={styles.photoModalOptionText}>Choose from Gallery</Text>
             </TouchableOpacity>
             <TouchableOpacity

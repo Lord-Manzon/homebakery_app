@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { AlertCircle, Banknote, ChevronRight, Clipboard, Flame, PlusCircle, Receipt } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -111,20 +111,20 @@ export default function DashboardScreen() {
         <View style={styles.heroDivider} />
         <View style={styles.heroSplitRow}>
           <View style={styles.heroSplitItem}>
-            <Ionicons name="cash-outline" size={15} color={Colors.textSecondary} />
+            <Banknote size={15} color={Colors.textSecondary} />
             <Text style={styles.heroSplitLabel}>Revenue</Text>
             <Text style={styles.heroSplitValue}>{fmt(financial.revenue)}</Text>
           </View>
           <View style={styles.heroSplitDivider} />
           <View style={styles.heroSplitItem}>
-            <Ionicons name="receipt-outline" size={15} color={Colors.textSecondary} />
+            <Receipt size={15} color={Colors.textSecondary} />
             <Text style={styles.heroSplitLabel}>Expenses</Text>
             <Text style={styles.heroSplitValue}>{fmt(financial.expenses)}</Text>
           </View>
         </View>
         <View style={styles.heroTapHint}>
           <Text style={styles.heroTapHintText}>View full reports</Text>
-          <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+          <ChevronRight size={14} color={Colors.textMuted} />
         </View>
       </TouchableOpacity>
 
@@ -135,7 +135,7 @@ export default function DashboardScreen() {
           onPress={() => router.push('/(tabs)/orders' as any)}
         >
           <View style={[styles.statIconWrap, { backgroundColor: '#FAECE7' }]}>
-            <Ionicons name="clipboard-outline" size={18} color="#993C1D" />
+            <Clipboard size={18} color="#993C1D" />
           </View>
           <Text style={styles.statNumber}>{stats?.activeOrders ?? 0}</Text>
           <Text style={styles.statLabel}>Active orders</Text>
@@ -147,7 +147,7 @@ export default function DashboardScreen() {
           onPress={() => router.push('/(tabs)/inventory' as any)}
         >
           <View style={[styles.statIconWrap, { backgroundColor: '#FFF3E0' }]}>
-            <Ionicons name="alert-circle-outline" size={18} color={Colors.warning} />
+            <AlertCircle size={18} color={Colors.warning} />
           </View>
           <Text style={[styles.statNumber, { color: Colors.warning }]}>
             {stats?.lowStockCount ?? 0}
@@ -162,11 +162,11 @@ export default function DashboardScreen() {
         onPress={() => router.push('/(tabs)/production' as any)}
       >
         <View style={[styles.statIconWrap, { backgroundColor: '#FAEEDA' }]}>
-          <Ionicons name="flame-outline" size={18} color="#854F0B" />
+          <Flame size={18} color="#854F0B" />
         </View>
         <Text style={styles.productionLabel}>In production</Text>
         <Text style={styles.productionValue}>{stats?.productionCount ?? 0}</Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+        <ChevronRight size={16} color={Colors.textMuted} />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -174,7 +174,7 @@ export default function DashboardScreen() {
         activeOpacity={0.8}
         onPress={() => router.push('/modals/expenses')}
       >
-        <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
+        <PlusCircle size={18} color={Colors.primary} />
         <Text style={styles.quickActionText}>Log expense</Text>
       </TouchableOpacity>
 

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { AlertTriangle, Minus, Plus, PlusCircle, XCircle } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -438,7 +438,7 @@ export default function AddOrderModal() {
                 ₱{(item.variant.selling_price * item.quantity).toFixed(2)}
               </Text>
               <TouchableOpacity onPress={() => handleRemoveItem(index)}>
-                <Ionicons name="close-circle" size={20} color={Colors.error} />
+                <XCircle size={20} color={Colors.error} />
               </TouchableOpacity>
             </View>
           </View>
@@ -449,7 +449,7 @@ export default function AddOrderModal() {
           style={styles.addItemButton}
           onPress={() => { setShowProductPicker(!showProductPicker); setErrors((e) => ({ ...e, items: '' })); }}
         >
-          <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+          <PlusCircle size={20} color={Colors.primary} />
           <Text style={styles.addItemText}>Add Product</Text>
         </TouchableOpacity>
         {errors.items ? <Text style={styles.errorText}>{errors.items}</Text> : null}
@@ -489,7 +489,7 @@ export default function AddOrderModal() {
             {/* Variant Selector */}
             {selectedProduct && variants.length === 0 && (
               <View style={styles.noVariantBox}>
-                <Ionicons name="warning-outline" size={18} color={Colors.warning} />
+                <AlertTriangle size={18} color={Colors.warning} />
                 <Text style={styles.noVariantText}>
                   This product has no variants yet.
                 </Text>
@@ -538,7 +538,7 @@ export default function AddOrderModal() {
                       )
                     }
                   >
-                    <Ionicons name="remove" size={18} color={Colors.primary} />
+                    <Minus size={18} color={Colors.primary} />
                   </TouchableOpacity>
                   <Text style={styles.quantityValue}>{quantity}</Text>
                   <TouchableOpacity
@@ -547,7 +547,7 @@ export default function AddOrderModal() {
                       setQuantity((q) => (parseInt(q) + 1).toString())
                     }
                   >
-                    <Ionicons name="add" size={18} color={Colors.primary} />
+                    <Plus size={18} color={Colors.primary} />
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity

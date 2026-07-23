@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Calendar, CheckCircle2, Clock, MapPin, MessageCircle, Pencil, ShoppingBag, Trash2 } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -211,24 +211,24 @@ export default function OrderDetailModal() {
           {order.order_type === 'delivery' ? 'Delivery Details' : 'Pickup Details'}
         </Text>
         <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
+          <Calendar size={16} color={Colors.textMuted} />
           <Text style={styles.infoText}>{formatDate(order.delivery_date)}</Text>
         </View>
         {order.delivery_time && (
           <View style={styles.infoRow}>
-            <Ionicons name="time-outline" size={16} color={Colors.textMuted} />
+            <Clock size={16} color={Colors.textMuted} />
             <Text style={styles.infoText}>{formatTime(order.delivery_time)}</Text>
           </View>
         )}
         {order.delivery_address && (
           <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={16} color={Colors.textMuted} />
+            <MapPin size={16} color={Colors.textMuted} />
             <Text style={styles.infoText}>{order.delivery_address}</Text>
           </View>
         )}
         {order.customer_notes && (
           <View style={styles.infoRow}>
-            <Ionicons name="chatbubble-outline" size={16} color={Colors.textMuted} />
+            <MessageCircle size={16} color={Colors.textMuted} />
             <Text style={styles.infoText}>{order.customer_notes}</Text>
           </View>
         )}
@@ -286,7 +286,7 @@ export default function OrderDetailModal() {
             style={styles.editOrderButton}
             onPress={() => router.push({ pathname: '/modals/edit-order', params: { id } })}
           >
-            <Ionicons name="create-outline" size={18} color={Colors.primary} />
+            <Pencil size={18} color={Colors.primary} />
             <Text style={styles.editOrderButtonText}>Edit Order</Text>
           </TouchableOpacity>
 
@@ -296,7 +296,7 @@ export default function OrderDetailModal() {
                 style={[styles.actionButton, styles.actionPaid]}
                 onPress={handleMarkPaid}
               >
-                <Ionicons name="checkmark-circle-outline" size={18} color={Colors.success} />
+                <CheckCircle2 size={18} color={Colors.success} />
                 <Text style={[styles.actionText, { color: Colors.success }]}>
                   Mark Paid
                 </Text>
@@ -307,7 +307,7 @@ export default function OrderDetailModal() {
                 style={[styles.actionButton, styles.actionDelivered]}
                 onPress={handleMarkDelivered}
               >
-                <Ionicons name="bag-check-outline" size={18} color={Colors.info} />
+                <ShoppingBag size={18} color={Colors.info} />
                 <Text style={[styles.actionText, { color: Colors.info }]}>
                   Mark Delivered
                 </Text>
@@ -317,7 +317,7 @@ export default function OrderDetailModal() {
               style={[styles.actionButton, styles.actionCancel]}
               onPress={handleDelete}
             >
-              <Ionicons name="trash-outline" size={18} color={Colors.error} />
+              <Trash2 size={18} color={Colors.error} />
               <Text style={[styles.actionText, { color: Colors.error }]}>
                 Delete
               </Text>
@@ -333,7 +333,7 @@ export default function OrderDetailModal() {
             style={[styles.actionButton, styles.actionCancel]}
             onPress={handleDelete}
           >
-            <Ionicons name="trash-outline" size={18} color={Colors.error} />
+            <Trash2 size={18} color={Colors.error} />
             <Text style={[styles.actionText, { color: Colors.error }]}>
               Delete Order
             </Text>

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Calendar as CalendarIcon, X } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -217,7 +217,7 @@ export default function ReportsModal() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="close" size={24} color={Colors.textPrimary} />
+          <X size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Reports</Text>
         <View style={{ width: 40 }} />
@@ -318,8 +318,7 @@ export default function ReportsModal() {
               handlePeriodChange('custom');
             }}
           >
-            <Ionicons
-              name="calendar-outline"
+            <CalendarIcon
               size={14}
               color={period === 'custom' ? Colors.primary : Colors.textMuted}
             />

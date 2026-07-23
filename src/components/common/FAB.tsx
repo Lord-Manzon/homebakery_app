@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Plus } from 'lucide-react-native';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../../constants/theme';
 
@@ -9,7 +9,7 @@ type Props = {
 export default function FAB({ onPress }: Props) {
   return (
     <TouchableOpacity style={styles.fab} onPress={onPress} activeOpacity={0.8}>
-      <Ionicons name="add" size={30} color="#fff" />
+      <Plus size={30} color="#fff" />
     </TouchableOpacity>
   );
 }

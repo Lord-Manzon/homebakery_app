@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Archive, Calculator, ChevronDown, ChevronUp, Image as ImageIcon, Pencil, Search, Store, Tag, XCircle } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -273,7 +273,7 @@ export default function ProductsScreen() {
     <View style={styles.container}>
       {/* Search */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={18} color={Colors.textMuted} />
+        <Search size={18} color={Colors.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search products..."
@@ -283,7 +283,7 @@ export default function ProductsScreen() {
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+            <XCircle size={18} color={Colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -322,14 +322,14 @@ export default function ProductsScreen() {
       <View style={styles.summaryRow}>
         <View style={styles.summaryItem}>
           <View style={[styles.summaryIconWrap, { backgroundColor: Colors.primary + '18' }]}>
-            <Ionicons name="storefront-outline" size={14} color={Colors.primary} />
+            <Store size={14} color={Colors.primary} />
           </View>
           <Text style={styles.summaryNumber}>{products.length}</Text>
           <Text style={styles.summaryLabel}>Products</Text>
         </View>
         <View style={styles.summaryItem}>
           <View style={[styles.summaryIconWrap, { backgroundColor: Colors.info + '18' }]}>
-            <Ionicons name="pricetags-outline" size={14} color={Colors.info} />
+            <Tag size={14} color={Colors.info} />
           </View>
           <Text style={styles.summaryNumber}>{categories.length - 1}</Text>
           <Text style={styles.summaryLabel}>Categories</Text>
@@ -348,8 +348,7 @@ export default function ProductsScreen() {
               },
             ]}
           >
-            <Ionicons
-              name="calculator-outline"
+            <Calculator
               size={14}
               color={needsCostingProducts.length > 0 ? Colors.warning : Colors.textMuted}
             />
@@ -386,7 +385,7 @@ export default function ProductsScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.centered}>
-            <Ionicons name="storefront-outline" size={48} color="#ddd" />
+            <Store size={48} color="#ddd" />
             <Text style={styles.emptyText}>
               {products.length === 0 ? 'No products yet' : 'No products match'}
             </Text>
@@ -426,7 +425,7 @@ export default function ProductsScreen() {
                     />
                   ) : (
                     <View style={styles.thumbnailPlaceholder}>
-                      <Ionicons name="image-outline" size={18} color={Colors.textMuted} />
+                      <ImageIcon size={18} color={Colors.textMuted} />
                     </View>
                   )}
                 </View>
@@ -465,7 +464,7 @@ export default function ProductsScreen() {
                       });
                     }}
                   >
-                    <Ionicons name="create-outline" size={20} color={Colors.textSecondary} />
+                    <Pencil size={20} color={Colors.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.iconButton}
@@ -474,7 +473,7 @@ export default function ProductsScreen() {
                       handleArchive(item);
                     }}
                   >
-                    <Ionicons name="archive-outline" size={20} color={Colors.error} />
+                    <Archive size={20} color={Colors.error} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -522,11 +521,11 @@ export default function ProductsScreen() {
                           <Text style={styles.marginLbl}>margin</Text>
                         </>
                       )}
-                      <Ionicons
-                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={11}
-                        color={marginTextStyle(tier, Colors).color}
-                      />
+                      {isExpanded ? (
+                        <ChevronUp size={11} color={marginTextStyle(tier, Colors).color} />
+                      ) : (
+                        <ChevronDown size={11} color={marginTextStyle(tier, Colors).color} />
+                      )}
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.captionLine}>

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Banknote, Gauge, MapPin, Moon, Palette, Smartphone, Store, Sun, X, type LucideIcon } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -19,10 +19,10 @@ const DISTANCE_UNITS: { value: 'km' | 'miles'; label: string; icon: string }[] =
   { value: 'km', label: 'Kilometers', icon: 'navigate-outline' },
   { value: 'miles', label: 'Miles', icon: 'navigate-outline' },
 ];
-const THEMES: { value: 'light' | 'dark' | 'system'; label: string; icon: string }[] = [
-  { value: 'light', label: 'Light', icon: 'sunny-outline' },
-  { value: 'dark', label: 'Dark', icon: 'moon-outline' },
-  { value: 'system', label: 'System', icon: 'phone-portrait-outline' },
+const THEMES: { value: 'light' | 'dark' | 'system'; label: string; icon: LucideIcon }[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Smartphone },
 ];
 
 export default function SettingsModal() {
@@ -91,7 +91,7 @@ export default function SettingsModal() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="close" size={24} color={Colors.textPrimary} />
+          <X size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
         <TouchableOpacity
@@ -127,7 +127,7 @@ export default function SettingsModal() {
         <View style={styles.card}>
           <View style={styles.fieldRow}>
             <View style={styles.fieldIcon}>
-              <Ionicons name="storefront-outline" size={18} color={Colors.primary} />
+              <Store size={18} color={Colors.primary} />
             </View>
             <View style={styles.fieldBody}>
               <Text style={styles.fieldLabel}>Business Name</Text>
@@ -147,7 +147,7 @@ export default function SettingsModal() {
 
           <View style={styles.fieldRow}>
             <View style={styles.fieldIcon}>
-              <Ionicons name="location-outline" size={18} color={Colors.primary} />
+              <MapPin size={18} color={Colors.primary} />
             </View>
             <View style={styles.fieldBody}>
               <Text style={styles.fieldLabel}>Business Address</Text>
@@ -170,7 +170,7 @@ export default function SettingsModal() {
         <View style={styles.card}>
           <View style={styles.fieldRow}>
             <View style={styles.fieldIcon}>
-              <Ionicons name="cash-outline" size={18} color={Colors.primary} />
+              <Banknote size={18} color={Colors.primary} />
             </View>
             <View style={styles.fieldBody}>
               <Text style={styles.fieldLabel}>Currency</Text>
@@ -212,7 +212,7 @@ export default function SettingsModal() {
           {/* Distance Unit */}
           <View style={styles.fieldRow}>
             <View style={styles.fieldIcon}>
-              <Ionicons name="speedometer-outline" size={18} color={Colors.primary} />
+              <Gauge size={18} color={Colors.primary} />
             </View>
             <View style={styles.fieldBody}>
               <Text style={styles.fieldLabel}>Distance Unit</Text>
@@ -240,7 +240,7 @@ export default function SettingsModal() {
           {/* Theme */}
           <View style={styles.fieldRow}>
             <View style={styles.fieldIcon}>
-              <Ionicons name="color-palette-outline" size={18} color={Colors.primary} />
+              <Palette size={18} color={Colors.primary} />
             </View>
             <View style={styles.fieldBody}>
               <Text style={styles.fieldLabel}>Theme</Text>
@@ -251,8 +251,7 @@ export default function SettingsModal() {
                     style={[styles.segment, theme === t.value && styles.segmentActive]}
                     onPress={() => setTheme(t.value)}
                   >
-                    <Ionicons
-                      name={t.icon as any}
+                    <t.icon
                       size={14}
                       color={theme === t.value ? '#fff' : Colors.textMuted}
                     />

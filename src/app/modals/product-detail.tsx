@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -157,7 +157,7 @@ export default function ProductDetailModal() {
           />
         ) : (
           <View style={styles.photoPlaceholder}>
-            <Ionicons name="image-outline" size={32} color={Colors.textMuted} />
+            <ImageIcon size={32} color={Colors.textMuted} />
             <Text style={styles.photoPlaceholderText}>No photo yet</Text>
           </View>
         )}
@@ -206,7 +206,7 @@ export default function ProductDetailModal() {
             })
           }
         >
-          <Ionicons name="create-outline" size={16} color={Colors.primary} />
+          <Pencil size={16} color={Colors.primary} />
           <Text style={styles.editButtonText}>Edit Product</Text>
         </TouchableOpacity>
       </View>
@@ -223,7 +223,7 @@ export default function ProductDetailModal() {
             })
           }
         >
-          <Ionicons name="add" size={20} color={Colors.primary} />
+          <Plus size={20} color={Colors.primary} />
           <Text style={styles.sectionAddText}>Add Variant</Text>
         </TouchableOpacity>
       </View>
@@ -252,7 +252,7 @@ export default function ProductDetailModal() {
                 style={styles.deleteIcon}
                 onPress={() => handleDeleteVariant(variant)}
               >
-                <Ionicons name="trash-outline" size={18} color={Colors.error} />
+                <Trash2 size={18} color={Colors.error} />
               </TouchableOpacity>
             </View>
           </View>
@@ -271,7 +271,7 @@ export default function ProductDetailModal() {
             })
           }
         >
-          <Ionicons name="add" size={20} color={Colors.primary} />
+          <Plus size={20} color={Colors.primary} />
           <Text style={styles.sectionAddText}>Add Ingredient</Text>
         </TouchableOpacity>
       </View>
@@ -305,7 +305,7 @@ export default function ProductDetailModal() {
                   style={styles.deleteIcon}
                   onPress={() => handleDeleteRecipeIngredient(item)}
                 >
-                  <Ionicons name="trash-outline" size={18} color={Colors.error} />
+                  <Trash2 size={18} color={Colors.error} />
                 </TouchableOpacity>
               </View>
             </View>

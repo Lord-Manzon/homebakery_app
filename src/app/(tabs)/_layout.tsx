@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { BarChart3, ChevronRight, Flame, Info, LayoutGrid, Menu, Package, Receipt, Settings, Store } from 'lucide-react-native';
 import { Tabs, router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -74,7 +74,7 @@ export default function TabsLayout() {
 
   const MenuButton = () => (
     <TouchableOpacity onPress={openSidebar} style={{ marginRight: 16 }}>
-      <Ionicons name="menu-outline" size={26} color={Colors.textPrimary} />
+      <Menu size={26} color={Colors.textPrimary} />
     </TouchableOpacity>
   );
 
@@ -110,7 +110,7 @@ export default function TabsLayout() {
             <View style={styles.sidebarHeader}>
               <View style={styles.sidebarLogoRow}>
                 <View style={styles.sidebarLogoIcon}>
-                  <Ionicons name="storefront" size={20} color="#fff" />
+                  <Store size={20} color="#fff" />
                 </View>
                 <View>
                   <Text style={styles.sidebarBusinessName}>{businessName}</Text>
@@ -131,10 +131,10 @@ export default function TabsLayout() {
               onPress={() => navigate('/modals/expenses')}
             >
               <View style={[styles.itemIcon, { backgroundColor: '#FFF3E0' }]}>
-                <Ionicons name="receipt-outline" size={18} color={Colors.primary} />
+                <Receipt size={18} color={Colors.primary} />
               </View>
               <Text style={styles.sidebarItemText}>Expenses</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              <ChevronRight size={16} color={Colors.textMuted} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -142,10 +142,10 @@ export default function TabsLayout() {
               onPress={() => navigate('/modals/reports')}
             >
               <View style={[styles.itemIcon, { backgroundColor: '#E8F5E9' }]}>
-                <Ionicons name="bar-chart-outline" size={18} color={Colors.success} />
+                <BarChart3 size={18} color={Colors.success} />
               </View>
               <Text style={styles.sidebarItemText}>Reports</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              <ChevronRight size={16} color={Colors.textMuted} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -153,10 +153,10 @@ export default function TabsLayout() {
               onPress={() => navigate('/modals/settings')}
             >
               <View style={[styles.itemIcon, { backgroundColor: '#E3F2FD' }]}>
-                <Ionicons name="settings-outline" size={18} color={Colors.info} />
+                <Settings size={18} color={Colors.info} />
               </View>
               <Text style={styles.sidebarItemText}>Settings</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+              <ChevronRight size={16} color={Colors.textMuted} />
             </TouchableOpacity>
 
             <View style={{ flex: 1 }} />
@@ -195,7 +195,7 @@ export default function TabsLayout() {
           options={{
             title: 'Dashboard',
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="grid-outline" size={size} color={color} />
+              <LayoutGrid size={size} color={color} />
             ),
           }}
         />
@@ -204,7 +204,7 @@ export default function TabsLayout() {
           options={{
             title: 'Orders',
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="receipt-outline" size={size} color={color} />
+              <Receipt size={size} color={color} />
             ),
             headerRight: () => <MenuButton />,
           }}
@@ -214,7 +214,7 @@ export default function TabsLayout() {
           options={{
             title: 'Production',
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="flame-outline" size={size} color={color} />
+              <Flame size={size} color={color} />
             ),
           }}
         />
@@ -223,7 +223,7 @@ export default function TabsLayout() {
           options={{
             title: 'Products',
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="storefront-outline" size={size} color={color} />
+              <Store size={size} color={color} />
             ),
             headerRight: () => (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -231,7 +231,7 @@ export default function TabsLayout() {
                   onPress={() => eventBus.emit('products:showGlossary')}
                   style={{ marginRight: 14 }}
                 >
-                  <Ionicons name="information-circle-outline" size={24} color={Colors.textPrimary} />
+                  <Info size={24} color={Colors.textPrimary} />
                 </TouchableOpacity>
                 <MenuButton />
               </View>
@@ -243,7 +243,7 @@ export default function TabsLayout() {
           options={{
             title: 'Inventory',
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="cube-outline" size={size} color={color} />
+              <Package size={size} color={color} />
             ),
             headerRight: () => <MenuButton />,
           }}

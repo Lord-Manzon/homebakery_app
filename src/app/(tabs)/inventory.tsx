@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { AlertTriangle, Minus, Package, Pencil, Plus, PlusCircle, Search, Trash2, UtensilsCrossed, X, XCircle } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -220,7 +220,7 @@ export default function InventoryScreen() {
       
       {/* Search */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={18} color={Colors.textMuted} />
+        <Search size={18} color={Colors.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search ingredients..."
@@ -230,7 +230,7 @@ export default function InventoryScreen() {
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+            <XCircle size={18} color={Colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -253,7 +253,7 @@ export default function InventoryScreen() {
       {stockAlerts.length > 0 && (
         <View style={styles.alertsCard}>
           <View style={styles.alertsHeader}>
-            <Ionicons name="warning-outline" size={16} color={Colors.warning} />
+            <AlertTriangle size={16} color={Colors.warning} />
             <Text style={styles.alertsTitle}>
               Stock Alerts ({stockAlerts.length})
             </Text>
@@ -302,7 +302,7 @@ export default function InventoryScreen() {
         }
         ListEmptyComponent={
           <View style={styles.centered}>
-            <Ionicons name="cube-outline" size={48} color={Colors.border} />
+            <Package size={48} color={Colors.border} />
             <Text style={styles.emptyText}>No ingredients yet</Text>
             <Text style={styles.emptySubtext}>
               Tap the + button to add your first ingredient
@@ -337,7 +337,7 @@ export default function InventoryScreen() {
                     style={styles.recipeRow}
                     onPress={() => openUsedIn(item)}
                   >
-                    <Ionicons name="restaurant-outline" size={12} color={Colors.textMuted} />
+                    <UtensilsCrossed size={12} color={Colors.textMuted} />
                     <Text style={styles.recipeText}>
                       Used in {count} {count === 1 ? 'recipe' : 'recipes'}
                     </Text>
@@ -355,7 +355,7 @@ export default function InventoryScreen() {
                     style={styles.iconButton}
                     onPress={() => openRestock(item)}
                   >
-                    <Ionicons name="add-circle-outline" size={20} color={Colors.success} />
+                    <PlusCircle size={20} color={Colors.success} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.iconButton}
@@ -373,13 +373,13 @@ export default function InventoryScreen() {
                       },
                     })}
                   >
-                    <Ionicons name="create-outline" size={20} color={Colors.textSecondary} />
+                    <Pencil size={20} color={Colors.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.iconButton}
                     onPress={() => handleDelete(item)}
                   >
-                    <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                    <Trash2 size={20} color={Colors.error} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -427,7 +427,7 @@ export default function InventoryScreen() {
           <View style={styles.usedInHeader}>
             <Text style={styles.confirmTitle}>Used In — {usedIn?.ingredientName}</Text>
             <TouchableOpacity onPress={() => setUsedIn(null)}>
-              <Ionicons name="close" size={22} color={Colors.textMuted} />
+              <X size={22} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
           <Text style={styles.usedInSubtitle}>
@@ -467,7 +467,7 @@ export default function InventoryScreen() {
               style={styles.restockStepButton}
               onPress={() => handleRestockStep(-1)}
             >
-              <Ionicons name="remove" size={20} color={Colors.textPrimary} />
+              <Minus size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
             <TextInput
               style={styles.restockInput}
@@ -485,7 +485,7 @@ export default function InventoryScreen() {
               style={styles.restockStepButton}
               onPress={() => handleRestockStep(1)}
             >
-              <Ionicons name="add" size={20} color={Colors.textPrimary} />
+              <Plus size={20} color={Colors.textPrimary} />
             </TouchableOpacity>
           </View>
           {restock && (

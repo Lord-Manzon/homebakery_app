@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Plus, Receipt, Trash2, X } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -75,14 +75,14 @@ export default function ExpensesScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="close" size={24} color={Colors.textPrimary} />
+          <X size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Expenses</Text>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => router.push('/modals/add-expense')}
         >
-          <Ionicons name="add" size={20} color="#fff" />
+          <Plus size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -112,7 +112,7 @@ export default function ExpensesScreen() {
         }
         ListEmptyComponent={
           <View style={styles.centered}>
-            <Ionicons name="receipt-outline" size={48} color="#ddd" />
+            <Receipt size={48} color="#ddd" />
             <Text style={styles.emptyText}>No expenses yet</Text>
             <Text style={styles.emptySubtext}>
               Tap the + button above to record your first expense
@@ -147,7 +147,7 @@ export default function ExpensesScreen() {
             <View style={styles.cardRight}>
               <Text style={styles.amount}>₱{fmt(item.amount)}</Text>
               <TouchableOpacity onPress={() => handleDelete(item)}>
-                <Ionicons name="trash-outline" size={18} color={Colors.error} />
+                <Trash2 size={18} color={Colors.error} />
               </TouchableOpacity>
             </View>
           </TouchableOpacity>

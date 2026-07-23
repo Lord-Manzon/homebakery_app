@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { X } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { ReactNode, useMemo } from 'react';
 import {
@@ -40,7 +40,7 @@ export default function PopupSheet({ title, children }: PopupSheetProps) {
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-            <Ionicons name="close" size={22} color={Colors.textPrimary} />
+            <X size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
