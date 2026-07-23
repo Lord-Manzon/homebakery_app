@@ -235,10 +235,18 @@ export default function ProductsScreen() {
     flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.15 });
     setHighlightId(pendingScrollId);
     setPendingScrollId(null);
-
-    const t = setTimeout(() => setHighlightId(null), 2000);
-    return () => clearTimeout(t);
   }, [pendingScrollId, filtered]);
+
+  // Kept as its own effect, keyed only on highlightId -- if this timer lived
+  // inside the scroll effect above, any unrelated re-run of that effect
+  // (e.g. `filtered` changing for any other reason while the highlight is
+  // still active) would cancel the pending clear with nothing to replace
+  // it, leaving the highlight stuck on instead of fading away.
+  useEffect(() => {
+    if (!highlightId) return;
+    const t = setTimeout(() => setHighlightId(null), 1800);
+    return () => clearTimeout(t);
+  }, [highlightId]);
 
   function handleArchive(product: Product) {
     setConfirm({
