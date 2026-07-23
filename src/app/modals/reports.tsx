@@ -23,6 +23,7 @@ import {
   getPeriodSummary,
   getProductPerformance,
 } from '../../services/reports';
+import { getSettings } from '../../services/settings';
 
 type PeriodTab = 'today' | 'week' | 'month' | 'all' | 'custom';
 
@@ -32,6 +33,7 @@ export default function ReportsModal() {
   const insets = useSafeAreaInsets();
   const now = new Date();
 
+  const [currency, setCurrency] = useState('PHP');
   const [period, setPeriod] = useState<PeriodTab>('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -70,10 +72,12 @@ export default function ReportsModal() {
 
   async function loadAll() {
     setLoading(true);
-    const [ind] = await Promise.all([
+    const [ind, settings] = await Promise.all([
       getMonthIndicators(calendarYear, calendarMonth),
+      getSettings(),
     ]);
     setIndicators(ind);
+    if (settings?.currency) setCurrency(settings.currency);
     await loadPeriodData(period, customStart, customEnd, referenceDate ?? undefined);
     setLoading(false);
   }
@@ -172,7 +176,7 @@ export default function ReportsModal() {
       maximumFractionDigits: 2,
     });
 
-  const currency = 'PHP';
+  
 
   // Label shown above the summary section
   function periodLabel(): string {

@@ -1,3 +1,4 @@
+import { PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold, useFonts } from '@expo-google-fonts/plus-jakarta-sans';
 import { Stack } from 'expo-router';
 import { View } from 'react-native';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
@@ -6,8 +7,20 @@ export const unstable_settings = {
   initialRouteName: '(tabs)',
 };
 
+
+
 function RootLayoutNav() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_700Bold,
+  });
   const Colors = useTheme();
+
+  if (!fontsLoaded) {
+    return null;
+  }
+ 
 
   // Shared look for every screen that shows a native header — background,
   // back-arrow/tint color, and title text color all need to react to theme,

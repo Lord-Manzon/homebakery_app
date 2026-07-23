@@ -3,7 +3,6 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
-import '@/global.css';
 
 import { Platform } from 'react-native';
 
@@ -27,6 +26,9 @@ export const ThemePalettes = {
     errorBackground: '#FDEDEC',
     lowStockBackground: '#FFF3E0',
     lowStockText: '#E07B39',
+
+    surfaceMuted: '#F0ECE6',
+    overlay: 'rgba(26, 21, 18, 0.4)',
   },
   dark: {
   primary: '#F0975A',
@@ -53,6 +55,9 @@ export const ThemePalettes = {
 
   lowStockBackground: '#4A361D',
   lowStockText: '#F0975A',
+
+  surfaceMuted: '#3D322A',
+  overlay: 'rgba(0, 0, 0, 0.6)',
 }
 } as const;
 
@@ -65,30 +70,11 @@ export const Colors = ThemePalettes.light;
 
 
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
+export const Fonts = {
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  bold: 'PlusJakartaSans_700Bold',
+} as const;
 
 export const Spacing = {
   half: 2,
@@ -98,6 +84,29 @@ export const Spacing = {
   four: 24,
   five: 32,
   six: 64,
+} as const;
+
+export const Radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 999,
+} as const;
+
+export const Shadows = {
+  sm: Platform.select({
+    ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 2 },
+    android: { elevation: 2 },
+  }),
+  md: Platform.select({
+    ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6 },
+    android: { elevation: 4 },
+  }),
+  lg: Platform.select({
+    ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.10, shadowRadius: 12 },
+    android: { elevation: 8 },
+  }),
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
