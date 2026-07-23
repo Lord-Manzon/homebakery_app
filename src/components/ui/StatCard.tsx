@@ -1,10 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
-import type { LucideIcon } from 'lucide-react-native';
-import { useTheme } from '@/hooks/use-theme';
-import { Fonts, Radius, Spacing } from '@/constants/theme';
-import { Card } from '@/components/ui/Card';
 import { FadeInView } from '@/components/motion/FadeInView';
 import { PressableScale } from '@/components/motion/PressableScale';
+import { Card } from '@/components/ui/Card';
+import { Fonts, Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import type { LucideIcon } from 'lucide-react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   icon: LucideIcon;
@@ -29,7 +29,7 @@ export function StatCard({ icon: Icon, value, label, tone, onPress, delay = 0, s
   const accent = tone ?? Colors.primary;
 
   const content = (
-    <Card style={style}>
+    <Card>
       <View style={[styles.iconChip, { backgroundColor: accent + '18' }]}>
         <Icon size={18} color={accent} />
       </View>
@@ -39,7 +39,7 @@ export function StatCard({ icon: Icon, value, label, tone, onPress, delay = 0, s
   );
 
   return (
-    <FadeInView delay={delay}>
+    <FadeInView delay={delay} style={style}>
       {onPress ? (
         <PressableScale onPress={onPress}>{content}</PressableScale>
       ) : (

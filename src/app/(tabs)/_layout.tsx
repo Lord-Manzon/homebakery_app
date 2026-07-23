@@ -1,5 +1,5 @@
-import { BarChart3, ChevronRight, Flame, Info, LayoutGrid, Menu, Package, Receipt, Settings, Store } from 'lucide-react-native';
 import { Tabs, router, useFocusEffect } from 'expo-router';
+import { BarChart3, ChevronRight, Flame, Info, LayoutGrid, Menu, Package, Receipt, Settings, Store } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -194,6 +194,7 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'Dashboard',
+            headerTitle: '',
             tabBarIcon: ({ color, size }) => (
               <LayoutGrid size={size} color={color} />
             ),

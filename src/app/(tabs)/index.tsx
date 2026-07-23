@@ -1,5 +1,5 @@
-import { AlertCircle, Banknote, ChevronRight, Clipboard, Flame, PlusCircle, Receipt } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { AlertCircle, Banknote, ChevronRight, Clipboard, Flame, Receipt } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
   RefreshControl,
@@ -9,12 +9,23 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { FadeInView } from '../../components/motion/FadeInView';
+import { Button } from '../../components/ui/Button';
+import { StatCard } from '../../components/ui/StatCard';
+import { Fonts, Radius, Shadows, Spacing } from '../../constants/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { DashboardStats, getDashboardStats } from '../../services/dashboard';
 import { getSettings } from '../../services/settings';
 import { Settings } from '../../types';
 
 type PeriodTab = 'today' | 'week' | 'month';
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export default function DashboardScreen() {
   const Colors = useTheme();
@@ -78,7 +89,16 @@ export default function DashboardScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <Text style={styles.dateText}>{todayLabel}</Text>
+      {/* Greeting replaces the old native "Dashboard" header title —
+          gives the top of the screen a job (context) instead of just
+          repeating the tab's name. */}
+      <View style={styles.header}>
+        <Text style={styles.greeting}>
+          {getGreeting()}{settings?.business_name ? `, ${settings.business_name}` : ''}
+        </Text>
+        <Text style={styles.dateText}>{todayLabel}</Text>
+      </View>
+
       <View style={styles.periodTabs}>
         {(['today', 'week', 'month'] as PeriodTab[]).map((p) => (
           <TouchableOpacity
@@ -96,87 +116,81 @@ export default function DashboardScreen() {
         ))}
       </View>
 
-      <TouchableOpacity
-        style={styles.heroCard}
-        activeOpacity={0.8}
-        onPress={() => router.push('/modals/reports')}
-      >
-        <Text style={styles.heroLabel}>Net profit {periodLabel}</Text>
-        <Text style={[
-          styles.heroValue,
-          { color: financial.netProfit >= 0 ? Colors.success : Colors.error },
-        ]}>
-          {currency} {fmt(financial.netProfit)}
-        </Text>
-        <View style={styles.heroDivider} />
-        <View style={styles.heroSplitRow}>
-          <View style={styles.heroSplitItem}>
-            <Banknote size={15} color={Colors.textSecondary} />
-            <Text style={styles.heroSplitLabel}>Revenue</Text>
-            <Text style={styles.heroSplitValue}>{fmt(financial.revenue)}</Text>
-          </View>
-          <View style={styles.heroSplitDivider} />
-          <View style={styles.heroSplitItem}>
-            <Receipt size={15} color={Colors.textSecondary} />
-            <Text style={styles.heroSplitLabel}>Expenses</Text>
-            <Text style={styles.heroSplitValue}>{fmt(financial.expenses)}</Text>
-          </View>
-        </View>
-        <View style={styles.heroTapHint}>
-          <Text style={styles.heroTapHintText}>View full reports</Text>
-          <ChevronRight size={14} color={Colors.textMuted} />
-        </View>
-      </TouchableOpacity>
-
-      <View style={styles.statsGrid}>
+      {/* Hero — the "big" tile in the bento grid, full width */}
+      <FadeInView delay={0}>
         <TouchableOpacity
-          style={styles.statCard}
+          style={styles.heroCard}
           activeOpacity={0.8}
-          onPress={() => router.push('/(tabs)/orders' as any)}
+          onPress={() => router.push('/modals/reports')}
         >
-          <View style={[styles.statIconWrap, { backgroundColor: '#FAECE7' }]}>
-            <Clipboard size={18} color="#993C1D" />
-          </View>
-          <Text style={styles.statNumber}>{stats?.activeOrders ?? 0}</Text>
-          <Text style={styles.statLabel}>Active orders</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.statCard}
-          activeOpacity={0.8}
-          onPress={() => router.push('/(tabs)/inventory' as any)}
-        >
-          <View style={[styles.statIconWrap, { backgroundColor: '#FFF3E0' }]}>
-            <AlertCircle size={18} color={Colors.warning} />
-          </View>
-          <Text style={[styles.statNumber, { color: Colors.warning }]}>
-            {stats?.lowStockCount ?? 0}
+          <Text style={styles.heroLabel}>Net profit {periodLabel}</Text>
+          <Text style={[
+            styles.heroValue,
+            { color: financial.netProfit >= 0 ? Colors.success : Colors.error },
+          ]}>
+            {currency} {fmt(financial.netProfit)}
           </Text>
-          <Text style={styles.statLabel}>Low stock</Text>
+          <View style={styles.heroDivider} />
+          <View style={styles.heroSplitRow}>
+            <View style={styles.heroSplitItem}>
+              <Banknote size={15} color={Colors.textSecondary} />
+              <Text style={styles.heroSplitLabel}>Revenue</Text>
+              <Text style={styles.heroSplitValue}>{fmt(financial.revenue)}</Text>
+            </View>
+            <View style={styles.heroSplitDivider} />
+            <View style={styles.heroSplitItem}>
+              <Receipt size={15} color={Colors.textSecondary} />
+              <Text style={styles.heroSplitLabel}>Expenses</Text>
+              <Text style={styles.heroSplitValue}>{fmt(financial.expenses)}</Text>
+            </View>
+          </View>
+          <View style={styles.heroTapHint}>
+            <Text style={styles.heroTapHintText}>View full reports</Text>
+            <ChevronRight size={14} color={Colors.textMuted} />
+          </View>
         </TouchableOpacity>
+      </FadeInView>
+
+      {/* Three small tiles in a row — the size contrast against the hero
+          above is what makes this read as a bento grid instead of a
+          uniform list of identical cards. */}
+      <View style={styles.statsRow}>
+        <StatCard
+          icon={Clipboard}
+          value={String(stats?.activeOrders ?? 0)}
+          label="Active orders"
+          tone="#993C1D"
+          onPress={() => router.push('/(tabs)/orders' as any)}
+          delay={50}
+          style={styles.statCardFlex}
+        />
+        <StatCard
+          icon={AlertCircle}
+          value={String(stats?.lowStockCount ?? 0)}
+          label="Low stock"
+          tone={Colors.warning}
+          onPress={() => router.push('/(tabs)/inventory' as any)}
+          delay={100}
+          style={styles.statCardFlex}
+        />
+        <StatCard
+          icon={Flame}
+          value={String(stats?.productionCount ?? 0)}
+          label="In production"
+          tone="#854F0B"
+          onPress={() => router.push('/(tabs)/production' as any)}
+          delay={150}
+          style={styles.statCardFlex}
+        />
       </View>
 
-      <TouchableOpacity
-        style={styles.productionRow}
-        activeOpacity={0.8}
-        onPress={() => router.push('/(tabs)/production' as any)}
-      >
-        <View style={[styles.statIconWrap, { backgroundColor: '#FAEEDA' }]}>
-          <Flame size={18} color="#854F0B" />
-        </View>
-        <Text style={styles.productionLabel}>In production</Text>
-        <Text style={styles.productionValue}>{stats?.productionCount ?? 0}</Text>
-        <ChevronRight size={16} color={Colors.textMuted} />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.quickAction}
-        activeOpacity={0.8}
-        onPress={() => router.push('/modals/expenses')}
-      >
-        <PlusCircle size={18} color={Colors.primary} />
-        <Text style={styles.quickActionText}>Log expense</Text>
-      </TouchableOpacity>
+      <FadeInView delay={200} style={styles.quickActionWrap}>
+        <Button
+          label="Log expense"
+          variant="secondary"
+          onPress={() => router.push('/modals/expenses')}
+        />
+      </FadeInView>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -188,33 +202,43 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontSize: 16, color: Colors.textMuted },
 
+  header: {
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.three,
+    marginBottom: Spacing.two,
+  },
+  greeting: {
+    fontFamily: Fonts.bold,
+    fontSize: 20,
+    color: Colors.textPrimary,
+  },
   dateText: {
+    fontFamily: Fonts.regular,
     fontSize: 13,
     color: Colors.textSecondary,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 2,
   },
+
   periodTabs: {
     flexDirection: 'row',
     backgroundColor: Colors.card,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: 4,
-    marginHorizontal: 16,
+    marginHorizontal: Spacing.three,
     gap: 4,
   },
   periodTab: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     alignItems: 'center',
   },
   periodTabActive: {
     backgroundColor: Colors.primary,
   },
   periodTabText: {
+    fontFamily: Fonts.medium,
     fontSize: 12,
-    fontWeight: '600',
     color: Colors.textMuted,
   },
   periodTabTextActive: {
@@ -223,21 +247,25 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
 
   heroCard: {
     backgroundColor: Colors.card,
-    borderRadius: 14,
-    margin: 16,
-    marginTop: 12,
-    padding: 20,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    margin: Spacing.three,
+    marginTop: Spacing.two + 4,
+    padding: Spacing.four,
     alignItems: 'center',
+    ...Shadows.sm,
   },
   heroLabel: {
+    fontFamily: Fonts.regular,
     fontSize: 13,
     color: Colors.textSecondary,
     marginBottom: 4,
   },
   heroValue: {
+    fontFamily: Fonts.bold,
     fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 16,
+    marginBottom: Spacing.three,
   },
   heroDivider: {
     width: '100%',
@@ -247,7 +275,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   heroSplitRow: {
     flexDirection: 'row',
     width: '100%',
-    paddingTop: 12,
+    paddingTop: Spacing.two + 4,
   },
   heroSplitItem: {
     flex: 1,
@@ -261,92 +289,39 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     backgroundColor: Colors.border,
   },
   heroSplitLabel: {
+    fontFamily: Fonts.regular,
     fontSize: 13,
     color: Colors.textSecondary,
   },
   heroSplitValue: {
+    fontFamily: Fonts.medium,
     fontSize: 13,
-    fontWeight: '600',
     color: Colors.textPrimary,
   },
   heroTapHint: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 14,
+    marginTop: Spacing.three - 2,
   },
   heroTapHintText: {
+    fontFamily: Fonts.regular,
     fontSize: 12,
     color: Colors.textMuted,
   },
 
-  statsGrid: {
+  statsRow: {
     flexDirection: 'row',
-    marginHorizontal: 16,
+    marginHorizontal: Spacing.three,
     gap: 10,
-    marginBottom: 10,
+    marginBottom: Spacing.two,
   },
-  statCard: {
+  statCardFlex: {
     flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 14,
-  },
-  statIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  statNumber: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
   },
 
-  productionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 16,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 14,
-  },
-  productionLabel: {
-    fontSize: 14,
-    color: Colors.textPrimary,
-    flex: 1,
-  },
-  productionValue: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginRight: 4,
-  },
-  quickAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingVertical: 14,
-  },
-  quickActionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary,
+  quickActionWrap: {
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.two,
   },
 });
