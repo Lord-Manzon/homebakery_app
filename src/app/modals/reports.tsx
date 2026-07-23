@@ -157,7 +157,9 @@ export default function ReportsModal() {
     };
   });
 
-  if (selectedDate) {
+  // In week mode, the band already shows the active range — a filled
+  // "selected" circle on top of it would be redundant, so skip it.
+  if (selectedDate && period !== 'week') {
     markedDates[selectedDate] = {
       ...(markedDates[selectedDate] ?? {}),
       selected: true,

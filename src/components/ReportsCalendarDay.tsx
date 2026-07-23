@@ -32,20 +32,33 @@ function ReportsCalendarDayComponent({ date, marking, isToday, otherMonth, onPre
     : {};
 
   return (
-    <TouchableOpacity activeOpacity={0.7} onPress={() => onPress?.(date)} style={{ alignItems: 'center' }}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => onPress?.(date)}
+      style={{ alignItems: 'center', position: 'relative' }}
+    >
+      {band !== 'none' && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 2,
+            bottom: 2,
+            left: band === 'start' ? '20%' : -16,
+            right: band === 'end' ? '20%' : -16,
+            backgroundColor: Colors.lowStockBackground,
+            ...bandEdgeRadius,
+          }}
+        />
+      )}
       <View
         style={{
           width: 34,
           paddingVertical: 6,
           alignItems: 'center',
-          backgroundColor:
-            band !== 'none' ? Colors.lowStockBackground
-            : isSelected ? Colors.primary
-            : 'transparent',
+          backgroundColor: isSelected ? Colors.primary : 'transparent',
           borderWidth: isToday && !isSelected ? 1 : 0,
           borderColor: Colors.primary,
-          borderRadius: band !== 'none' ? 0 : 8,
-          ...bandEdgeRadius,
+          borderRadius: 8,
         }}
       >
         <Text
