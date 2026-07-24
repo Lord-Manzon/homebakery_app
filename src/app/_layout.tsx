@@ -81,7 +81,6 @@ function RootLayoutNav() {
         <Stack.Screen
           name="modals/product-detail"
           options={{
-            presentation: 'modal',
             headerShown: false,
           }}
         />
