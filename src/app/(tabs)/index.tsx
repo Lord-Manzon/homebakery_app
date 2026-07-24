@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { AlertCircle, Banknote, ChevronRight, Clipboard, Flame, Receipt } from 'lucide-react-native';
+import { AlertCircle, Banknote, ChevronRight, Clipboard, Flame, Menu, Receipt } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
   RefreshControl,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeInView } from '../../components/motion/FadeInView';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
@@ -17,6 +18,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { DashboardStats, getDashboardStats } from '../../services/dashboard';
 import { getSettings } from '../../services/settings';
 import { Settings } from '../../types';
+import { eventBus } from '../../utils/eventBus';
 
 type PeriodTab = 'today' | 'week' | 'month';
 
@@ -29,6 +31,7 @@ function getGreeting() {
 
 export default function DashboardScreen() {
   const Colors = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -89,14 +92,23 @@ export default function DashboardScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Greeting replaces the old native "Dashboard" header title —
-          gives the top of the screen a job (context) instead of just
-          repeating the tab's name. */}
-      <View style={styles.header}>
-        <Text style={styles.greeting}>
-          {getGreeting()}{settings?.business_name ? `, ${settings.business_name}` : ''}
-        </Text>
-        <Text style={styles.dateText}>{todayLabel}</Text>
+      {/* Greeting replaces the old native "Dashboard" header title. The
+          native header is fully hidden for this tab now (see _layout.tsx)
+          so we own the top safe-area inset and the menu icon ourselves —
+          this removes the dead empty header-bar space the native header
+          reserved even with the title blanked out. */}
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]}>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>
+              {getGreeting()}{settings?.business_name ? `, ${settings.business_name}` : ''}
+            </Text>
+            <Text style={styles.dateText}>{todayLabel}</Text>
+          </View>
+          <TouchableOpacity onPress={() => eventBus.emit('sidebar:open')} hitSlop={12}>
+            <Menu size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.periodTabs}>
@@ -204,8 +216,12 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
 
   header: {
     marginHorizontal: Spacing.three,
-    marginTop: Spacing.three,
     marginBottom: Spacing.two,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
   greeting: {
     fontFamily: Fonts.bold,
