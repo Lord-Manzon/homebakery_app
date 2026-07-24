@@ -1,6 +1,16 @@
-import { Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import {
+  ChefHat,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
+  Info,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2
+} from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,22 +22,33 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { FadeInView } from '../../components/motion/FadeInView';
+import { PressableScale } from '../../components/motion/PressableScale';
+import { Accordion } from '../../components/ui/Accordion';
+import { InfoModal } from '../../components/ui/InfoModal';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getIngredients } from '../../services/ingredients';
 import {
+  archiveProduct,
   archiveVariant,
-  deleteRecipeIngredient,
   getProductById,
   getRecipeIngredients,
+  getVariantSalesStats,
   getVariantsByProduct,
+  VariantSalesStats
 } from '../../services/products';
-import { Ingredient, Product, ProductVariant, RecipeIngredient } from '../../types';
+import { getSettings } from '../../services/settings';
+import { Ingredient, Product, ProductVariant, RecipeIngredient, Settings } from '../../types';
 import {
+  calculateBufferAmount,
   calculateCostPerPiece,
   calculateIngredientCost,
+  calculateMarginPercent,
   calculateRecipeCost,
-  formatPriceRange,
+  calculateVariantProfit,
+  calculateVariantTotalCost,
 } from '../../utils/costing';
+import { getCurrencyPrefix } from '../../utils/currency';
 
 export default function ProductDetailModal() {
   const Colors = useTheme();
@@ -38,6 +59,8 @@ export default function ProductDetailModal() {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [recipeIngredients, setRecipeIngredients] = useState<RecipeIngredient[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [salesStats, setSalesStats] = useState<Record<string, VariantSalesStats>>({});
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirm, setConfirm] = useState<{
@@ -46,20 +69,31 @@ export default function ProductDetailModal() {
     actionLabel: string;
     onConfirm: () => void;
   } | null>(null);
+  const [showCostingInfo, setShowCostingInfo] = useState(false);
 
   async function load() {
-    const [productData, variantsData, recipeData, ingredientsData] =
+    const [productData, variantsData, recipeData, ingredientsData, settingsData] =
       await Promise.all([
         getProductById(id),
         getVariantsByProduct(id),
         getRecipeIngredients(id),
         getIngredients(),
+        getSettings(),
       ]);
 
     setProduct(productData);
     setVariants(variantsData);
     setRecipeIngredients(recipeData);
     setIngredients(ingredientsData);
+    setSettings(settingsData);
+
+    if (variantsData.length > 0) {
+      const stats = await getVariantSalesStats(variantsData.map((v) => v.id));
+      setSalesStats(stats);
+    } else {
+      setSalesStats({});
+    }
+
     setLoading(false);
   }
 
@@ -100,15 +134,17 @@ export default function ProductDetailModal() {
     });
   }
 
-  function handleDeleteRecipeIngredient(item: RecipeIngredient) {
+
+  function handleArchiveProduct() {
+    if (!product) return;
     setConfirm({
-      title: 'Remove Ingredient',
-      message: `Remove "${getIngredientName(item.ingredient_id)}" from this recipe?`,
-      actionLabel: 'Remove',
+      title: 'Archive Product',
+      message: `Archive "${product.name}"? It will be hidden from your product list but existing orders referencing it are preserved.`,
+      actionLabel: 'Archive',
       onConfirm: async () => {
-        const success = await deleteRecipeIngredient(item.id);
+        const success = await archiveProduct(product.id);
         setConfirm(null);
-        if (success) await load();
+        if (success) router.back();
       },
     });
   }
@@ -129,373 +165,452 @@ export default function ProductDetailModal() {
     );
   }
 
+  const cur = getCurrencyPrefix(settings?.currency);
   const recipeCost = calculateRecipeCost(recipeIngredients, ingredients);
   const costPerPiece = calculateCostPerPiece(recipeCost, product.yield);
-  const prices = variants.map((v) => v.selling_price);
-  const profits = prices.map((p) => p - costPerPiece);
-  const priceLabel = formatPriceRange(prices);
-  const profitLabel = profits.length === 0 ? '—' : formatPriceRange(profits);
-  const marginLabel =
-    prices.length === 1 && prices[0] > 0
-      ? `${(((prices[0] - costPerPiece) / prices[0]) * 100).toFixed(0)}%`
-      : null;
+
+  const variantMetrics = variants.map((v) => {
+    const totalCost = calculateVariantTotalCost(costPerPiece, v.packaging_cost, product.buffer_percent);
+    const profit = calculateVariantProfit(v.selling_price, totalCost);
+    const margin = calculateMarginPercent(v.selling_price, profit);
+    return { variant: v, totalCost, profit, margin };
+  });
+
+  const rankedByProfit = [...variantMetrics].sort((a, b) => b.profit - a.profit);
+  const best = rankedByProfit[0] ?? null;
+  const bestRank = best ? rankedByProfit.findIndex((m) => m.variant.id === best.variant.id) + 1 : 0;
+
+  const bestSales = best ? salesStats[best.variant.id] : undefined;
+  const soldLast30 = bestSales?.last30Days ?? 0;
+  const soldAllTime = bestSales?.allTime ?? 0;
+  const soldDisplay = soldLast30 > 0 ? soldLast30 : soldAllTime;
+  const soldLabel = soldLast30 > 0 ? 'Sold (last 30 days)' : 'Sold (all-time)';
+  const profitContribution = best ? best.profit * soldAllTime : 0;
+
+  const breakdownBuffer = calculateBufferAmount(costPerPiece, product.buffer_percent);
+  const breakdownPackaging = best?.variant.packaging_cost ?? 0;
+  const breakdownTotal = best?.totalCost ?? costPerPiece + breakdownBuffer;
 
   return (
     <View style={styles.container}>
-    <ScrollView
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Photo */}
-      <View style={styles.photoWrap}>
-        {product.image_url ? (
-          <Image
-            source={{ uri: product.image_url }}
-            style={styles.photo}
-            contentFit="cover"
-          />
-        ) : (
-          <View style={styles.photoPlaceholder}>
-            <ImageIcon size={32} color={Colors.textMuted} />
-            <Text style={styles.photoPlaceholderText}>No photo yet</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Product Info */}
-      <View style={styles.card}>
-        {product.category && (
-          <Text style={styles.categoryLabel}>{product.category}</Text>
-        )}
-        <Text style={styles.productName}>{product.name}</Text>
-        {product.description && (
-          <Text style={styles.description}>{product.description}</Text>
-        )}
-
-        <View style={styles.costSummary}>
-          <View style={styles.costSummaryItem}>
-            <Text style={styles.costSummaryLabel}>Cost</Text>
-            <Text style={styles.costSummaryValue}>₱{costPerPiece.toFixed(2)}</Text>
-          </View>
-          <View style={styles.costSummaryDivider} />
-          <View style={styles.costSummaryItem}>
-            <Text style={styles.costSummaryLabel}>Price</Text>
-            <Text style={[styles.costSummaryValue, { color: Colors.primary }]}>
-              {priceLabel}
-            </Text>
-          </View>
-          <View style={styles.costSummaryDivider} />
-          <View style={styles.costSummaryItem}>
-            <Text style={styles.costSummaryLabel}>Profit</Text>
-            <Text style={[styles.costSummaryValue, { color: Colors.success }]}>
-              {profitLabel}
-            </Text>
-          </View>
-        </View>
-        {marginLabel && (
-          <Text style={styles.marginText}>Margin: {marginLabel}</Text>
-        )}
-
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() =>
-            router.push({
-              pathname: '/modals/edit-product',
-              params: { id: product.id },
-            })
-          }
-        >
-          <Pencil size={16} color={Colors.primary} />
-          <Text style={styles.editButtonText}>Edit Product</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+          <ChevronDown size={22} color={Colors.textPrimary} style={{ transform: [{ rotate: '90deg' }] }} />
         </TouchableOpacity>
-      </View>
-
-      {/* Variants */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Variants</Text>
-        <TouchableOpacity
-          style={styles.sectionAddButton}
-          onPress={() =>
-            router.push({
-              pathname: '/modals/add-variant',
-              params: { product_id: id },
-            })
-          }
-        >
-          <Plus size={20} color={Colors.primary} />
-          <Text style={styles.sectionAddText}>Add Variant</Text>
-        </TouchableOpacity>
-      </View>
-
-      {variants.length === 0 ? (
-        <View style={styles.emptySection}>
-          <Text style={styles.emptyText}>No variants yet</Text>
-          <Text style={styles.emptySubtext}>
-            Add variants like Small, Medium, Large or Box of 4
-          </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() =>
+              router.push({ pathname: '/modals/edit-product', params: { id: product.id } })
+            }
+          >
+            <Pencil size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerBtn} onPress={handleArchiveProduct}>
+            <MoreVertical size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
         </View>
-      ) : (
-        variants.map((variant) => (
-          <View key={variant.id} style={styles.listItem}>
-            <View style={styles.listItemLeft}>
-              <Text style={styles.listItemName}>{variant.name}</Text>
-              {variant.packaging && (
-                <Text style={styles.listItemSub}>{variant.packaging}</Text>
-              )}
-            </View>
-            <View style={styles.listItemRight}>
-              <Text style={styles.price}>
-                ₱{variant.selling_price.toFixed(2)}
-              </Text>
-              <TouchableOpacity
-                style={styles.deleteIcon}
-                onPress={() => handleDeleteVariant(variant)}
+      </View>
+
+      <ScrollView
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero */}
+        <FadeInView delay={0}>
+          <View style={styles.hero}>
+            {product.image_url ? (
+              <>
+                <Image source={{ uri: product.image_url }} style={styles.heroImage} contentFit="cover" />
+                {product.category && (
+                  <View style={styles.heroCategoryBadge}>
+                    <Text style={styles.heroCategoryText}>{product.category}</Text>
+                  </View>
+                )}
+                <View style={styles.heroScrim}>
+                  <Text style={styles.heroName}>{product.name}</Text>
+                  <Text style={styles.heroMeta}>
+                    {variants.length} variant{variants.length === 1 ? '' : 's'} · yields {product.yield}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.heroPlaceholder}>
+                <ImageIcon size={30} color={Colors.textMuted} />
+                {product.category && (
+                  <Text style={styles.heroCategoryLabelPlain}>{product.category}</Text>
+                )}
+                <Text style={styles.heroNamePlain}>{product.name}</Text>
+                <Text style={styles.heroMetaPlain}>
+                  {variants.length} variant{variants.length === 1 ? '' : 's'} · yields {product.yield}
+                </Text>
+              </View>
+            )}
+          </View>
+          {product.description ? (
+            <Text style={styles.description}>{product.description}</Text>
+          ) : null}
+        </FadeInView>
+
+        {/* Highest Profit accordion */}
+        {best && (
+          <FadeInView delay={60}>
+            <View style={styles.profitCard}>
+              <Accordion
+                header={(open) => (
+                  <View style={styles.profitHeaderRow}>
+                    <View>
+                      <Text style={styles.profitLabel}>Highest profit</Text>
+                      <Text style={styles.profitValue}>
+                        {cur}{best.profit.toFixed(2)}
+                      </Text>
+                      <Text style={styles.profitSub}>{best.variant.name} variant</Text>
+                    </View>
+                    {open ? (
+                      <ChevronUp size={18} color={Colors.success} />
+                    ) : (
+                      <ChevronDown size={18} color={Colors.success} />
+                    )}
+                  </View>
+                )}
               >
-                <Trash2 size={18} color={Colors.error} />
+                <View style={styles.profitDetail}>
+                  <View style={styles.profitDetailRow}>
+                    <Text style={styles.profitDetailLabel}>Margin</Text>
+                    <Text style={styles.profitDetailValue}>
+                      {best.margin !== null ? `${best.margin.toFixed(0)}%` : '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.profitDetailRow}>
+                    <Text style={styles.profitDetailLabel}>{soldLabel}</Text>
+                    <Text style={styles.profitDetailValue}>{soldDisplay}</Text>
+                  </View>
+                  <View style={styles.profitDetailRow}>
+                    <Text style={styles.profitDetailLabel}>Profit contribution (all-time)</Text>
+                    <Text style={styles.profitDetailValue}>{cur}{profitContribution.toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.profitDetailRow}>
+                    <Text style={styles.profitDetailLabel}>Rank</Text>
+                    <Text style={styles.profitDetailValue}>#{bestRank} of {variants.length}</Text>
+                  </View>
+                </View>
+              </Accordion>
+            </View>
+          </FadeInView>
+        )}
+
+        {/* Costing breakdown */}
+        <FadeInView delay={120}>
+          <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Costing breakdown</Text>
+                <TouchableOpacity onPress={() => setShowCostingInfo(true)} hitSlop={8}>
+                  <Info size={14} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+          <View style={styles.costingCard}>
+            <Accordion
+              header={(open) => (
+                <View style={styles.costingRow}>
+                  <View style={styles.costingRowLabel}>
+                    <Text style={styles.costingLabel}>Recipe cost</Text>
+                    {open ? (
+                      <ChevronUp size={13} color={Colors.textMuted} />
+                    ) : (
+                      <ChevronDown size={13} color={Colors.textMuted} />
+                    )}
+                  </View>
+                  <Text style={styles.costingValue}>{cur}{costPerPiece.toFixed(2)}</Text>
+                </View>
+              )}
+            >
+              <View style={styles.ingredientBreakdown}>
+                {recipeIngredients.map((item) => (
+                  <View key={item.id} style={styles.ingredientBreakdownRow}>
+                    <Text style={styles.ingredientBreakdownName}>
+                      {getIngredientName(item.ingredient_id)} · {item.quantity_used} {item.unit_used}
+                    </Text>
+                    <Text style={styles.ingredientBreakdownCost}>
+                      {cur}{calculateIngredientCost(item, getIngredient(item.ingredient_id)).toFixed(2)}
+                    </Text>
+                  </View>
+                ))}
+                {recipeIngredients.length === 0 && (
+                  <Text style={styles.ingredientBreakdownEmpty}>No ingredients added yet.</Text>
+                )}
+              </View>
+            </Accordion>
+
+            <View style={styles.costingDivider} />
+            <View style={styles.costingRow}>
+              <Text style={styles.costingLabel}>Packaging{best ? ` (${best.variant.name})` : ''}</Text>
+              <Text style={styles.costingValue}>{cur}{breakdownPackaging.toFixed(2)}</Text>
+            </View>
+            <View style={styles.costingDivider} />
+            <View style={styles.costingRow}>
+              <Text style={styles.costingLabel}>Buffer ({product.buffer_percent}%)</Text>
+              <Text style={styles.costingValue}>{cur}{breakdownBuffer.toFixed(2)}</Text>
+            </View>
+            <View style={styles.costingDivider} />
+            <View style={styles.costingRow}>
+              <Text style={styles.costingTotalLabel}>Total cost</Text>
+              <Text style={styles.costingTotalValue}>{cur}{breakdownTotal.toFixed(2)}</Text>
+            </View>
+          </View>
+        </FadeInView>
+
+        {/* Variants */}
+        <FadeInView delay={180}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Variants</Text>
+            <TouchableOpacity
+              style={styles.sectionAddButton}
+              onPress={() => router.push({ pathname: '/modals/add-variant', params: { product_id: id } })}
+            >
+              <Plus size={20} color={Colors.primary} />
+              <Text style={styles.sectionAddText}>Add Variant</Text>
+            </TouchableOpacity>
+          </View>
+
+          {variantMetrics.length === 0 ? (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyText}>No variants yet</Text>
+              <Text style={styles.emptySubtext}>
+                Add variants like Small, Medium, Large or Box of 4
+              </Text>
+            </View>
+          ) : (
+            variantMetrics.map((m) => {
+              const isBest = best?.variant.id === m.variant.id;
+              return (
+                <PressableScale
+                  key={m.variant.id}
+                  onPress={() =>
+                    router.push({ pathname: '/modals/edit-variant', params: { id: m.variant.id } })
+                  }
+                >
+                  <View style={[styles.variantRow, isBest && styles.variantRowBest]}>
+                    <View style={styles.variantLeft}>
+                      <Text style={styles.variantName}>{m.variant.name}</Text>
+                      <Text style={[styles.variantProfit, isBest && { color: Colors.success, fontWeight: '700' }]}>
+                        Profit {cur}{m.profit.toFixed(2)}{isBest ? ' · highest' : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.variantRight}>
+                      <Text style={styles.variantPrice}>{cur}{m.variant.selling_price.toFixed(2)}</Text>
+                      <TouchableOpacity
+                        style={styles.deleteIcon}
+                        onPress={() => handleDeleteVariant(m.variant)}
+                      >
+                        <Trash2 size={18} color={Colors.error} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </PressableScale>
+              );
+            })
+          )}
+        </FadeInView>
+
+        {/* Instructions */}
+        <FadeInView delay={300}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Instructions</Text>
+          </View>
+          {product.preparation_instructions ? (
+            <View style={styles.instructionsCard}>
+              <Text style={styles.instructionsText}>{product.preparation_instructions}</Text>
+            </View>
+          ) : (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyText}>No instructions yet</Text>
+              <Text style={styles.emptySubtext}>Add baking steps from Edit Product</Text>
+            </View>
+          )}
+        </FadeInView>
+
+        <PressableScale
+          onPress={() => router.push({ pathname: '/modals/recipe', params: { product_id: id } })}
+        >
+          <View style={styles.manageRecipeButton}>
+            <ChefHat size={16} color="#fff" />
+            <Text style={styles.manageRecipeText}>Manage recipe</Text>
+          </View>
+        </PressableScale>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+
+      <InfoModal
+        visible={showCostingInfo}
+        title="Costing breakdown"
+        message="Total cost = Recipe cost (your ingredients, from the recipe) + Packaging (specific to the highlighted variant) + Buffer (the safety margin percentage set on this product, for waste or estimation error). Tap Recipe cost to see the ingredient-by-ingredient math."
+        onClose={() => setShowCostingInfo(false)}
+      />
+
+      <Modal visible={!!confirm} transparent animationType="fade" onRequestClose={() => setConfirm(null)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <Text style={styles.confirmTitle}>{confirm?.title}</Text>
+            <Text style={styles.confirmMessage}>{confirm?.message}</Text>
+            <View style={styles.confirmButtons}>
+              <TouchableOpacity style={styles.confirmCancel} onPress={() => setConfirm(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmAction} onPress={confirm?.onConfirm}>
+                <Text style={styles.confirmActionText}>{confirm?.actionLabel}</Text>
               </TouchableOpacity>
             </View>
           </View>
-        ))
-      )}
-
-      {/* Recipe Ingredients */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recipe Ingredients</Text>
-        <TouchableOpacity
-          style={styles.sectionAddButton}
-          onPress={() =>
-            router.push({
-              pathname: '/modals/add-recipe-ingredient',
-              params: { product_id: id },
-            })
-          }
-        >
-          <Plus size={20} color={Colors.primary} />
-          <Text style={styles.sectionAddText}>Add Ingredient</Text>
-        </TouchableOpacity>
-      </View>
-
-      {recipeIngredients.length === 0 ? (
-        <View style={styles.emptySection}>
-          <Text style={styles.emptyText}>No ingredients yet</Text>
-          <Text style={styles.emptySubtext}>
-            Add the ingredients this recipe requires
-          </Text>
         </View>
-      ) : (
-        <>
-          {recipeIngredients.map((item) => (
-            <View key={item.id} style={styles.listItem}>
-              <View style={styles.listItemLeft}>
-                <Text style={styles.listItemName}>
-                  {getIngredientName(item.ingredient_id)}
-                </Text>
-                <Text style={styles.listItemSub}>
-                  {item.quantity_used} {item.unit_used} used
-                  {' · '}
-                  bought {item.purchased_quantity} {item.purchased_unit}
-                </Text>
-              </View>
-              <View style={styles.listItemRight}>
-                <Text style={styles.ingredientCost}>
-                  ₱{calculateIngredientCost(item, getIngredient(item.ingredient_id)).toFixed(2)}
-                </Text>
-                <TouchableOpacity
-                  style={styles.deleteIcon}
-                  onPress={() => handleDeleteRecipeIngredient(item)}
-                >
-                  <Trash2 size={18} color={Colors.error} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-          <View style={styles.recipeCostTotal}>
-            <Text style={styles.recipeCostTotalLabel}>Total recipe cost</Text>
-            <Text style={styles.recipeCostTotalValue}>₱{recipeCost.toFixed(2)}</Text>
-          </View>
-        </>
-      )}
-
-      {/* Instructions */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Instructions</Text>
-      </View>
-
-      {product.preparation_instructions ? (
-        <View style={styles.instructionsCard}>
-          <Text style={styles.instructionsText}>
-            {product.preparation_instructions}
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.emptySection}>
-          <Text style={styles.emptyText}>No instructions yet</Text>
-          <Text style={styles.emptySubtext}>
-            Add baking steps from Edit Product
-          </Text>
-        </View>
-      )}
-
-      <View style={{ height: 40 }} />
-    </ScrollView>
-
-    <Modal
-      visible={!!confirm}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setConfirm(null)}
-    >
-      <View style={styles.confirmOverlay}>
-        <View style={styles.confirmBox}>
-          <Text style={styles.confirmTitle}>{confirm?.title}</Text>
-          <Text style={styles.confirmMessage}>{confirm?.message}</Text>
-          <View style={styles.confirmButtons}>
-            <TouchableOpacity style={styles.confirmCancel} onPress={() => setConfirm(null)}>
-              <Text style={styles.confirmCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.confirmAction} onPress={confirm?.onConfirm}>
-              <Text style={styles.confirmActionText}>{confirm?.actionLabel}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
+      </Modal>
     </View>
   );
 }
 
 const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  centered: {
-    flex: 1,
+  container: { flex: 1, backgroundColor: Colors.background },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorText: { fontSize: 16, color: Colors.error },
+
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
-  errorText: {
-    fontSize: 16,
-    color: Colors.error,
-  },
-  photoWrap: {
+  headerBtn: { padding: 6 },
+  headerActions: { flexDirection: 'row', gap: 4 },
+
+  hero: {
     marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  photo: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    backgroundColor: Colors.card,
+  heroImage: { width: '100%', height: 190, backgroundColor: Colors.card },
+  heroCategoryBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
-  photoPlaceholder: {
+  heroCategoryText: { fontSize: 11, fontWeight: '600', color: '#fff' },
+  heroScrim: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  heroName: { fontSize: 19, fontWeight: '700', color: '#fff' },
+  heroMeta: { fontSize: 12, color: '#eee', marginTop: 2 },
+  heroPlaceholder: {
     width: '100%',
-    height: 160,
-    borderRadius: 12,
+    minHeight: 160,
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    paddingVertical: 20,
+    gap: 4,
   },
-  photoPlaceholderText: {
-    fontSize: 13,
-    color: Colors.textMuted,
-  },
-  card: {
-    backgroundColor: Colors.card,
-    margin: 16,
-    borderRadius: 12,
-    padding: 16,
-  },
-  categoryLabel: {
+  heroCategoryLabelPlain: {
     fontSize: 11,
     color: Colors.primary,
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    marginTop: 8,
   },
-  productName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
+  heroNamePlain: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary, marginTop: 2 },
+  heroMetaPlain: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+
   description: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 20,
+    marginHorizontal: 16,
+    marginTop: 10,
+    lineHeight: 19,
   },
-  costSummary: {
+
+  profitCard: {
+    backgroundColor: Colors.successBackground,
+    marginHorizontal: 16,
+    marginTop: 14,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  profitHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 14,
+  },
+  profitLabel: { fontSize: 12, fontWeight: '600', color: Colors.success },
+  profitValue: { fontSize: 22, fontWeight: '700', color: Colors.success, marginTop: 2 },
+  profitSub: { fontSize: 12, color: Colors.success, marginTop: 2 },
+  profitDetail: { paddingHorizontal: 14, paddingBottom: 14, gap: 8 },
+  profitDetailRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  profitDetailLabel: { fontSize: 12, color: Colors.success },
+  profitDetailValue: { fontSize: 12, fontWeight: '700', color: Colors.success },
+
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 4,
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 18,
   },
-  costSummaryItem: {
-    flex: 1,
-    alignItems: 'center',
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
+
+  costingCard: {
+    backgroundColor: Colors.card,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
   },
-  costSummaryDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: Colors.border,
-  },
-  costSummaryLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginBottom: 2,
-  },
-  costSummaryValue: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-  },
-  marginText: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  editButton: {
+  costingRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  editButtonText: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
+  costingRowLabel: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  costingLabel: { fontSize: 13, color: Colors.textSecondary },
+  costingValue: { fontSize: 13, fontWeight: '600', color: Colors.textPrimary },
+  costingTotalLabel: { fontSize: 13, fontWeight: '700', color: Colors.textPrimary },
+  costingTotalValue: { fontSize: 14, fontWeight: '700', color: Colors.primary },
+  costingDivider: { height: 1, backgroundColor: Colors.border },
+  ingredientBreakdown: { backgroundColor: Colors.background, paddingHorizontal: 14, paddingVertical: 8 },
+  ingredientBreakdownRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+  ingredientBreakdownName: { fontSize: 12, color: Colors.textMuted, flex: 1, marginRight: 8 },
+  ingredientBreakdownCost: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
+  ingredientBreakdownEmpty: { fontSize: 12, color: Colors.textMuted, paddingVertical: 4 },
+
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 18,
+    paddingBottom: 8,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  sectionAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sectionAddText: {
-    fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
+  sectionAddButton: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  sectionAddText: { fontSize: 14, color: Colors.primary, fontWeight: '600' },
+
   emptySection: {
     backgroundColor: Colors.card,
     marginHorizontal: 16,
@@ -504,17 +619,28 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
-  emptyText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textMuted,
+  emptyText: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
+  emptySubtext: { fontSize: 12, color: Colors.textMuted, marginTop: 4, textAlign: 'center' },
+
+  variantRow: {
+    backgroundColor: Colors.card,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  emptySubtext: {
-    fontSize: 12,
-    color: '#bbb',
-    marginTop: 4,
-    textAlign: 'center',
-  },
+  variantRowBest: { borderColor: Colors.success, borderWidth: 1.5 },
+  variantLeft: { flex: 1 },
+  variantName: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
+  variantProfit: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  variantRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  variantPrice: { fontSize: 15, fontWeight: '700', color: Colors.textPrimary },
+
   listItem: {
     backgroundColor: Colors.card,
     marginHorizontal: 16,
@@ -525,34 +651,12 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  listItemLeft: {
-    flex: 1,
-  },
-  listItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  listItemName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  listItemSub: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  price: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.success,
-  },
-  ingredientCost: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
+  listItemLeft: { flex: 1 },
+  listItemRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  listItemName: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
+  listItemSub: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  ingredientCost: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary },
+
   recipeCostTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -561,16 +665,9 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 4,
   },
-  recipeCostTotalLabel: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  recipeCostTotalValue: {
-    fontSize: 13,
-    color: Colors.textPrimary,
-    fontWeight: '700',
-  },
+  recipeCostTotalLabel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
+  recipeCostTotalValue: { fontSize: 13, color: Colors.textPrimary, fontWeight: '700' },
+
   instructionsCard: {
     backgroundColor: Colors.card,
     marginHorizontal: 16,
@@ -578,14 +675,23 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     borderRadius: 10,
     padding: 16,
   },
-  instructionsText: {
-    fontSize: 14,
-    color: Colors.textPrimary,
-    lineHeight: 22,
+  instructionsText: { fontSize: 14, color: Colors.textPrimary, lineHeight: 22 },
+
+  manageRecipeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 12,
+    paddingVertical: 14,
   },
-  deleteIcon: {
-    padding: 4,
-  },
+  manageRecipeText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  deleteIcon: { padding: 4 },
+
   confirmOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -593,28 +699,10 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
-  confirmBox: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-  },
-  confirmTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 8,
-  },
-  confirmMessage: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  confirmButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  confirmBox: { backgroundColor: Colors.card, borderRadius: 16, padding: 24, width: '100%' },
+  confirmTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 8 },
+  confirmMessage: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 20 },
+  confirmButtons: { flexDirection: 'row', gap: 10 },
   confirmCancel: {
     flex: 1,
     paddingVertical: 12,
@@ -622,11 +710,7 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     backgroundColor: Colors.background,
     alignItems: 'center',
   },
-  confirmCancelText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
+  confirmCancelText: { fontSize: 15, fontWeight: '600', color: Colors.textSecondary },
   confirmAction: {
     flex: 1,
     paddingVertical: 12,
@@ -634,9 +718,5 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     backgroundColor: Colors.error,
     alignItems: 'center',
   },
-  confirmActionText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-  },
+  confirmActionText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });
