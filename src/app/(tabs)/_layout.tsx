@@ -1,6 +1,6 @@
 import { Tabs, router, useFocusEffect } from 'expo-router';
 import { BarChart3, ChevronRight, Flame, Info, LayoutGrid, Menu, Package, Receipt, Settings, Store } from 'lucide-react-native';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -71,6 +71,11 @@ export default function TabsLayout() {
   function navigate(path: string) {
     closeSidebar(() => router.push(path as any));
   }
+
+  // Dashboard has no native header (see index Tabs.Screen below), so its
+  // own in-body menu icon opens the sidebar via eventBus instead of the
+  // headerRight MenuButton every other tab uses.
+  useEffect(() => eventBus.on('sidebar:open', openSidebar), []);
 
   const MenuButton = () => (
     <TouchableOpacity onPress={openSidebar} style={{ marginRight: 16 }}>
@@ -194,7 +199,7 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: 'Dashboard',
-            headerTitle: '',
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <LayoutGrid size={size} color={color} />
             ),
