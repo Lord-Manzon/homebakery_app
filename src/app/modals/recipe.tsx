@@ -2,20 +2,20 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Plus, Trash2 } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getIngredients } from '../../services/ingredients';
 import {
-    deleteRecipeIngredient,
-    getProductById,
-    getRecipeIngredients,
+  deleteRecipeIngredient,
+  getProductById,
+  getRecipeIngredients,
 } from '../../services/products';
 import { getSettings } from '../../services/settings';
 import { Ingredient, Product, RecipeIngredient, Settings } from '../../types';
@@ -140,6 +140,20 @@ export default function RecipeModal() {
           })
         )}
 
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Instructions</Text>
+        </View>
+        {product?.preparation_instructions ? (
+          <View style={styles.instructionsCard}>
+            <Text style={styles.instructionsText}>{product.preparation_instructions}</Text>
+          </View>
+        ) : (
+          <View style={styles.emptySection}>
+            <Text style={styles.emptyText}>No instructions yet</Text>
+            <Text style={styles.emptySubtext}>Add baking steps from Edit Product</Text>
+          </View>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
 
@@ -225,6 +239,8 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   listItemSub: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   ingredientCost: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary },
   deleteIcon: { padding: 4 },
+  instructionsCard: { backgroundColor: Colors.card, marginHorizontal: 16, marginBottom: 8, borderRadius: 10, padding: 16 },
+  instructionsText: { fontSize: 14, color: Colors.textPrimary, lineHeight: 22 },
   confirmOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
