@@ -58,6 +58,42 @@ export function calculateCostPerPiece(recipeCost: number, yieldCount: number): n
   return recipeCost / yieldCount;
 }
 
+// Buffer is a percentage safety margin applied on top of raw ingredient
+// cost (e.g. for waste, spoilage, or estimation error) — not on packaging.
+export function calculateBufferAmount(
+  costPerPiece: number,
+  bufferPercent: number
+): number {
+  return costPerPiece * (bufferPercent / 100);
+}
+
+// Full landed cost for one unit of a specific variant: raw ingredient cost
+// + that variant's packaging + the buffer safety margin.
+export function calculateVariantTotalCost(
+  costPerPiece: number,
+  packagingCost: number,
+  bufferPercent: number
+): number {
+  return costPerPiece + packagingCost + calculateBufferAmount(costPerPiece, bufferPercent);
+}
+
+export function calculateVariantProfit(
+  sellingPrice: number,
+  totalCost: number
+): number {
+  return sellingPrice - totalCost;
+}
+
+// Returns null instead of a misleading 0% when price is 0 or missing —
+// callers should render a dash rather than "0%" in that case.
+export function calculateMarginPercent(
+  sellingPrice: number,
+  profit: number
+): number | null {
+  if (sellingPrice <= 0) return null;
+  return (profit / sellingPrice) * 100;
+}
+
 // Formats a list of prices as a single value ("₱55.00") or a range
 // ("₱420.00 – ₱680.00") depending on how many distinct prices exist.
 export function formatPriceRange(prices: number[], currency = '₱'): string {
