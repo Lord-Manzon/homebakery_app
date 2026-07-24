@@ -172,7 +172,7 @@ export default function TabsLayout() {
           headerShown: true,
           headerRight: () => <MenuButton />,
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: Colors.card },
+          headerStyle: { backgroundColor: Colors.background },
           headerTitleStyle: { color: Colors.textPrimary, fontWeight: '700' },
           tabBarActiveTintColor: Colors.primary,
           tabBarInactiveTintColor: Colors.textMuted,
@@ -204,6 +204,7 @@ export default function TabsLayout() {
           name="orders"
           options={{
             title: 'Orders',
+            headerTitle: '',
             tabBarIcon: ({ color, size }) => (
               <Receipt size={size} color={color} />
             ),
@@ -214,6 +215,7 @@ export default function TabsLayout() {
           name="production"
           options={{
             title: 'Production',
+            headerTitle: '',
             tabBarIcon: ({ color, size }) => (
               <Flame size={size} color={color} />
             ),
@@ -223,6 +225,7 @@ export default function TabsLayout() {
           name="products"
           options={{
             title: 'Products',
+            headerTitle: '',
             tabBarIcon: ({ color, size }) => (
               <Store size={size} color={color} />
             ),
@@ -243,6 +246,7 @@ export default function TabsLayout() {
           name="inventory"
           options={{
             title: 'Inventory',
+            headerTitle: '',
             tabBarIcon: ({ color, size }) => (
               <Package size={size} color={color} />
             ),
