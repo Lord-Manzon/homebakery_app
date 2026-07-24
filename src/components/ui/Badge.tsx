@@ -1,12 +1,14 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '@/hooks/use-theme';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { StyleSheet, Text, View } from 'react-native';
 
 type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
 type Props = {
   label: string;
   tone?: Tone;
+  /** Escape hatch for one-off colors that don't fit the standard tones (e.g. a brand-tinted status). Overrides `tone` when set. */
+  color?: { bg: string; text: string };
 };
 
 /**
@@ -15,7 +17,7 @@ type Props = {
  * *Background token yet, so it uses the same color+alpha trick already
  * used elsewhere in the app (e.g. production.tsx) rather than a solid fill.
  */
-export function Badge({ label, tone = 'neutral' }: Props) {
+export function Badge({ label, tone = 'neutral', color }: Props) {
   const Colors = useTheme();
 
   const toneStyles: Record<Tone, { bg: string; text: string }> = {
@@ -26,7 +28,7 @@ export function Badge({ label, tone = 'neutral' }: Props) {
     neutral: { bg: Colors.surfaceMuted, text: Colors.textSecondary },
   };
 
-  const { bg, text } = toneStyles[tone];
+  const { bg, text } = color ?? toneStyles[tone];
 
   return (
     <View style={[styles.base, { backgroundColor: bg }]}>
