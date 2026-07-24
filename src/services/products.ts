@@ -159,6 +159,49 @@ export async function deleteVariant(id: string): Promise<boolean> {
   return true;
 }
 
+export type VariantSalesStats = {
+  last30Days: number;
+  allTime: number;
+};
+
+// Units sold per variant, both as a rolling 30-day count and an all-time
+// count. The UI falls back to all-time when 30-day is 0, so a brand-new
+// variant doesn't look artificially dead in its first couple weeks.
+export async function getVariantSalesStats(
+  variantIds: string[]
+): Promise<Record<string, VariantSalesStats>> {
+  if (variantIds.length === 0) return {};
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('variant_id, quantity, orders!inner(delivery_date, order_status)')
+    .in('variant_id', variantIds)
+    .eq('orders.order_status', 'completed');
+
+  if (error) {
+    console.error('Error fetching variant sales stats:', error.message);
+    return {};
+  }
+
+  const stats: Record<string, VariantSalesStats> = {};
+  variantIds.forEach((id) => { stats[id] = { last30Days: 0, allTime: 0 }; });
+
+  (data ?? []).forEach((row: any) => {
+    const vId = row.variant_id;
+    if (!stats[vId]) return;
+    stats[vId].allTime += row.quantity ?? 0;
+    if (row.orders?.delivery_date && row.orders.delivery_date >= cutoffStr) {
+      stats[vId].last30Days += row.quantity ?? 0;
+    }
+  });
+
+  return stats;
+}
+
 export async function getRecipeIngredients(
   productId: string
 ): Promise<RecipeIngredient[]> {
