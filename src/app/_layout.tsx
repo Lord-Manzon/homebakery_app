@@ -81,13 +81,27 @@ function RootLayoutNav() {
         <Stack.Screen
           name="modals/product-detail"
           options={{
-            ...headerOptions,
             presentation: 'modal',
-            title: 'Product Details',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="modals/recipe"
+          options={{
+            presentation: 'modal',
+            headerShown: false,
           }}
         />
         <Stack.Screen
           name="modals/add-variant"
+          options={{
+            presentation: 'transparentModal',
+            headerShown: false,
+            animation: 'fade',
+          }}
+        />
+        <Stack.Screen
+          name="modals/edit-variant"
           options={{
             presentation: 'transparentModal',
             headerShown: false,
