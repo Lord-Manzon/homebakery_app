@@ -22,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeInView } from '../../components/motion/FadeInView';
 import { PressableScale } from '../../components/motion/PressableScale';
 import { Accordion } from '../../components/ui/Accordion';
@@ -53,6 +54,7 @@ import { getCurrencyPrefix } from '../../utils/currency';
 export default function ProductDetailModal() {
   const Colors = useTheme();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -70,6 +72,7 @@ export default function ProductDetailModal() {
     onConfirm: () => void;
   } | null>(null);
   const [showCostingInfo, setShowCostingInfo] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   async function load() {
     const [productData, variantsData, recipeData, ingredientsData, settingsData] =
@@ -180,6 +183,11 @@ export default function ProductDetailModal() {
   const best = rankedByProfit[0] ?? null;
   const bestRank = best ? rankedByProfit.findIndex((m) => m.variant.id === best.variant.id) + 1 : 0;
 
+  // Costing breakdown reflects whichever variant was last tapped, defaulting
+  // to the highest-profit one until the person picks a different variant.
+  const selectedMetric =
+    variantMetrics.find((m) => m.variant.id === selectedVariantId) ?? best;
+
   const bestSales = best ? salesStats[best.variant.id] : undefined;
   const soldLast30 = bestSales?.last30Days ?? 0;
   const soldAllTime = bestSales?.allTime ?? 0;
@@ -188,13 +196,13 @@ export default function ProductDetailModal() {
   const profitContribution = best ? best.profit * soldAllTime : 0;
 
   const breakdownBuffer = calculateBufferAmount(costPerPiece, product.buffer_percent);
-  const breakdownPackaging = best?.variant.packaging_cost ?? 0;
-  const breakdownTotal = best?.totalCost ?? costPerPiece + breakdownBuffer;
+  const breakdownPackaging = selectedMetric?.variant.packaging_cost ?? 0;
+  const breakdownTotal = selectedMetric?.totalCost ?? costPerPiece + breakdownBuffer;
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
           <ChevronDown size={22} color={Colors.textPrimary} style={{ transform: [{ rotate: '90deg' }] }} />
         </TouchableOpacity>
@@ -303,11 +311,14 @@ export default function ProductDetailModal() {
         {/* Costing breakdown */}
         <FadeInView delay={120}>
           <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Costing breakdown</Text>
-                <TouchableOpacity onPress={() => setShowCostingInfo(true)} hitSlop={8}>
-                  <Info size={14} color={Colors.textMuted} />
-                </TouchableOpacity>
-              </View>
+            <Text style={styles.sectionTitle}>Costing breakdown</Text>
+            <TouchableOpacity onPress={() => setShowCostingInfo(true)} hitSlop={8}>
+              <Info size={14} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          {selectedMetric && (
+            <Text style={styles.costingSubtitle}>For {selectedMetric.variant.name}</Text>
+          )}
           <View style={styles.costingCard}>
             <Accordion
               header={(open) => (
@@ -382,14 +393,17 @@ export default function ProductDetailModal() {
           ) : (
             variantMetrics.map((m) => {
               const isBest = best?.variant.id === m.variant.id;
+              const isSelected = selectedMetric?.variant.id === m.variant.id;
               return (
                 <PressableScale
                   key={m.variant.id}
-                  onPress={() =>
-                    router.push({ pathname: '/modals/edit-variant', params: { id: m.variant.id } })
-                  }
+                  onPress={() => setSelectedVariantId(m.variant.id)}
                 >
-                  <View style={[styles.variantRow, isBest && styles.variantRowBest]}>
+                  <View style={[
+                    styles.variantRow,
+                    isBest && styles.variantRowBest,
+                    isSelected && styles.variantRowSelected,
+                  ]}>
                     <View style={styles.variantLeft}>
                       <Text style={styles.variantName}>{m.variant.name}</Text>
                       <Text style={[styles.variantProfit, isBest && { color: Colors.success, fontWeight: '700' }]}>
@@ -398,6 +412,14 @@ export default function ProductDetailModal() {
                     </View>
                     <View style={styles.variantRight}>
                       <Text style={styles.variantPrice}>{cur}{m.variant.selling_price.toFixed(2)}</Text>
+                      <TouchableOpacity
+                        style={styles.deleteIcon}
+                        onPress={() =>
+                          router.push({ pathname: '/modals/edit-variant', params: { id: m.variant.id } })
+                        }
+                      >
+                        <Pencil size={17} color={Colors.textSecondary} />
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.deleteIcon}
                         onPress={() => handleDeleteVariant(m.variant)}
@@ -412,23 +434,10 @@ export default function ProductDetailModal() {
           )}
         </FadeInView>
 
-        {/* Instructions */}
-        <FadeInView delay={300}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Instructions</Text>
-          </View>
-          {product.preparation_instructions ? (
-            <View style={styles.instructionsCard}>
-              <Text style={styles.instructionsText}>{product.preparation_instructions}</Text>
-            </View>
-          ) : (
-            <View style={styles.emptySection}>
-              <Text style={styles.emptyText}>No instructions yet</Text>
-              <Text style={styles.emptySubtext}>Add baking steps from Edit Product</Text>
-            </View>
-          )}
-        </FadeInView>
+        <View style={{ height: 100 }} />
+      </ScrollView>
 
+      <View style={[styles.floatingBar, { paddingBottom: insets.bottom + 12 }]}>
         <PressableScale
           onPress={() => router.push({ pathname: '/modals/recipe', params: { product_id: id } })}
         >
@@ -437,9 +446,7 @@ export default function ProductDetailModal() {
             <Text style={styles.manageRecipeText}>Manage recipe</Text>
           </View>
         </PressableScale>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      </View>
 
       <InfoModal
         visible={showCostingInfo}
@@ -635,6 +642,19 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   variantRowBest: { borderColor: Colors.success, borderWidth: 1.5 },
+  variantRowSelected: { borderColor: Colors.primary, borderWidth: 1.5 },
+  costingSubtitle: { fontSize: 12, color: Colors.textMuted, marginHorizontal: 16, marginTop: 2 },
+  floatingBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.background,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
   variantLeft: { flex: 1 },
   variantName: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
   variantProfit: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
