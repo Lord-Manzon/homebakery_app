@@ -1,5 +1,5 @@
-import { AlertCircle, Bike, Clock, MapPin, Receipt, Store, type LucideIcon } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { AlertCircle, Bike, Clock, MapPin, Receipt, Store, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -11,6 +11,10 @@ import {
   View
 } from 'react-native';
 import FAB from '../../components/common/FAB';
+import { PressableScale } from '../../components/motion/PressableScale';
+import { Badge } from '../../components/ui/Badge';
+import { Card } from '../../components/ui/Card';
+import { Radius } from '../../constants/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
 import { Order } from '../../types';
@@ -319,8 +323,8 @@ export default function OrdersScreen() {
             </View>
           )}
           renderItem={({ item }: { item: Order }) => (
-            <TouchableOpacity
-              style={styles.card}
+            <PressableScale
+              style={styles.cardWrap}
               onPress={() =>
                 router.push({
                   pathname: '/modals/order-detail',
@@ -328,37 +332,23 @@ export default function OrdersScreen() {
                 })
               }
             >
+              <Card>
               <View style={styles.cardTop}>
                 <Text style={styles.customerName} numberOfLines={1}>{item.customer_name}</Text>
                 <View style={styles.badges}>
-                  <View
-                    style={[
-                      styles.badge,
-                      item.order_type === 'delivery'
-                        ? styles.badgeDelivery
-                        : styles.badgePickup,
-                    ]}
-                  >
-                    <Text style={item.order_type === 'delivery' ? styles.badgeDeliveryText : styles.badgePickupText}>
-                      {item.order_type === 'delivery' ? '🛵 Delivery' : '🏠 Pickup'}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.badge,
-                      item.payment_status === 'paid'
-                        ? styles.badgePaid
-                        : styles.badgeUnpaid,
-                    ]}
-                  >
-                    <Text style={item.payment_status === 'paid' ? styles.badgePaidText : styles.badgeUnpaidText}>
-                      {item.payment_status === 'paid' ? '✓ Paid' : 'Unpaid'}
-                    </Text>
-                  </View>
+                  <Badge
+                    label={item.order_type === 'delivery' ? '🛵 Delivery' : '🏠 Pickup'}
+                    tone={item.order_type === 'delivery' ? 'info' : 'success'}
+                  />
+                  <Badge
+                    label={item.payment_status === 'paid' ? '✓ Paid' : 'Unpaid'}
+                    tone={item.payment_status === 'paid' ? 'success' : 'error'}
+                  />
                   {item.is_delivered && (
-                    <View style={[styles.badge, styles.badgeDelivered]}>
-                      <Text style={styles.badgeDeliveredText}>🚚 Delivered</Text>
-                    </View>
+                    <Badge
+                      label="🚚 Delivered"
+                      color={{ bg: Colors.primarySoft + '33', text: Colors.primary }}
+                    />
                   )}
                 </View>
               </View>
@@ -415,7 +405,8 @@ export default function OrdersScreen() {
                   )}
                 </View>
               )}
-            </TouchableOpacity>
+            </Card>
+            </PressableScale>
           )}
         />
       )}
@@ -485,7 +476,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
 
   heroCard: {
     backgroundColor: Colors.card,
-    borderRadius: 14,
+    borderRadius: Radius.lg,
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 12,
@@ -534,7 +525,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     backgroundColor: Colors.surface,
     marginHorizontal: 16,
     marginTop: 16,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: 4,
     gap: 4,
     marginBottom: 10,
@@ -544,7 +535,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   tab: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     alignItems: 'center',
   },
   tabActive: {
@@ -571,7 +562,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 20,
+    borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: Colors.textMuted + '55',
     backgroundColor: Colors.card,
@@ -612,13 +603,9 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     fontSize: 13,
     color: Colors.textMuted,
   },
-  card: {
-    backgroundColor: Colors.card,
+  cardWrap: {
     marginHorizontal: 16,
     marginBottom: 8,
-    borderRadius: 12,
-    padding: 14,
-    position: 'relative',
   },
   cardTop: {
     flexDirection: 'row',
@@ -644,51 +631,6 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 6,
     flexShrink: 0,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  badgeDelivery: {
-    backgroundColor: Colors.infoBackground,
-  },
-  badgeDeliveryText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.info,
-  },
-  badgePickup: {
-    backgroundColor: Colors.successBackground,
-  },
-  badgePickupText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.success,
-  },
-  badgePaid: {
-    backgroundColor: Colors.successBackground,
-  },
-  badgePaidText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.success,
-  },
-  badgeUnpaid: {
-    backgroundColor: Colors.errorBackground,
-  },
-  badgeUnpaidText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.error,
-  },
-  badgeDelivered: {
-    backgroundColor: Colors.primarySoft + '33',
-  },
-  badgeDeliveredText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.primary,
   },
   cardBottom: {
     flexDirection: 'row',
@@ -725,7 +667,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   pillButton: {
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 20,
+    borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -766,7 +708,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   },
   confirmBox: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     padding: 24,
     width: '100%',
   },
@@ -789,7 +731,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   confirmCancel: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     backgroundColor: Colors.surface,
     alignItems: 'center',
   },
@@ -801,7 +743,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   confirmAction: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     backgroundColor: Colors.primary,
     alignItems: 'center',
   },
