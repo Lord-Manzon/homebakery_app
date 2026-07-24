@@ -21,6 +21,7 @@ export default function AddVariantModal() {
   const [name, setName] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [packaging, setPackaging] = useState('');
+  const [packagingCost, setPackagingCost] = useState('');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -42,6 +43,7 @@ export default function AddVariantModal() {
       name: name.trim(),
       selling_price: parseFloat(sellingPrice) || 0,
       packaging: packaging.trim() || null,
+      packaging_cost: parseFloat(packagingCost) || 0,
       is_archived: false,
     });
 
@@ -100,6 +102,20 @@ export default function AddVariantModal() {
           placeholderTextColor={Colors.textMuted}
           value={packaging}
           onChangeText={setPackaging}
+        />
+      </View>
+
+      {/* Packaging Cost */}
+      <View style={styles.section}>
+        <Text style={styles.label}>Packaging Cost (optional)</Text>
+        <Text style={styles.hint}>What this specific packaging costs you, per unit</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="0.00"
+          placeholderTextColor={Colors.textMuted}
+          value={packagingCost}
+          onChangeText={setPackagingCost}
+          keyboardType="numeric"
         />
       </View>
 
