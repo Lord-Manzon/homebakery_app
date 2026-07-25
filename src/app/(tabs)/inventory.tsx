@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 import FAB from '../../components/common/FAB';
-import { useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
+import { Spacing } from '../../constants/theme';
+import { useTabBarHeight, useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   adjustStock,
@@ -26,6 +27,7 @@ import { Ingredient } from '../../types';
 export default function InventoryScreen() {
   const Colors = useTheme();
   const { onScroll } = useTabBarVisibility();
+  const tabBarHeight = useTabBarHeight();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [filtered, setFiltered] = useState<Ingredient[]>([]);
@@ -301,6 +303,7 @@ export default function InventoryScreen() {
         keyExtractor={(item) => item.id}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + Spacing.two }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -392,7 +395,7 @@ export default function InventoryScreen() {
         }}
         
       />
-      <FAB onPress={() => router.push('/modals/add-ingredient')} />
+      <FAB onPress={() => router.push('/modals/add-ingredient')} bottomOffset={tabBarHeight} />
 
     <Modal
       visible={!!confirm}
