@@ -33,6 +33,7 @@ export type ProductVariant = {
   selling_price: number;
   packaging: string | null;
   packaging_cost: number;
+  pieces_per_variant: number;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
