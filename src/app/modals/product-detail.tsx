@@ -26,6 +26,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeInView } from '../../components/motion/FadeInView';
 import { PressableScale } from '../../components/motion/PressableScale';
+import { VariantFormModal } from '../../components/products/VariantFormModal';
 import { Accordion } from '../../components/ui/Accordion';
 import { InfoModal } from '../../components/ui/InfoModal';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -75,6 +76,8 @@ export default function ProductDetailModal() {
   } | null>(null);
   const [showCostingInfo, setShowCostingInfo] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [variantModal, setVariantModal] = useState<'add' | 'edit' | null>(null);
+  const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
 
   async function load() {
     const [productData, variantsData, recipeData, ingredientsData, settingsData] =
@@ -388,7 +391,7 @@ export default function ProductDetailModal() {
             <Text style={styles.sectionTitle}>Variants</Text>
             <TouchableOpacity
               style={styles.sectionAddButton}
-              onPress={() => router.push({ pathname: '/modals/add-variant', params: { product_id: id } })}
+              onPress={() => setVariantModal('add')}
             >
               <Plus size={20} color={Colors.primary} />
               <Text style={styles.sectionAddText}>Add Variant</Text>
@@ -426,9 +429,7 @@ export default function ProductDetailModal() {
                       <Text style={styles.variantPrice}>{cur}{m.variant.selling_price.toFixed(2)}</Text>
                       <TouchableOpacity
                         style={styles.deleteIcon}
-                        onPress={() =>
-                          router.push({ pathname: '/modals/edit-variant', params: { id: m.variant.id } })
-                        }
+                        onPress={() => { setEditingVariant(m.variant); setVariantModal('edit'); }}
                       >
                         <Pencil size={17} color={Colors.textSecondary} />
                       </TouchableOpacity>
@@ -468,6 +469,19 @@ export default function ProductDetailModal() {
         title="Costing breakdown"
         message="Total cost = Recipe cost (your ingredients, from the recipe) + Packaging (specific to the highlighted variant) + Buffer (the safety margin percentage set on this product, for waste or estimation error). Tap Recipe cost to see the ingredient-by-ingredient math."
         onClose={() => setShowCostingInfo(false)}
+      />
+
+      <VariantFormModal
+        visible={variantModal !== null}
+        productId={id}
+        variant={variantModal === 'edit' ? editingVariant : null}
+        costPerPiece={costPerPiece}
+        bufferPercent={product.buffer_percent}
+        markupPercent={product.markup_percent}
+        currencyPrefix={cur}
+        onClose={() => { setVariantModal(null); setEditingVariant(null); }}
+        onSaved={load}
+        onArchive={handleDeleteVariant}
       />
 
       <Modal visible={!!confirm} transparent animationType="fade" onRequestClose={() => setConfirm(null)}>

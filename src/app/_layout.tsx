@@ -1,6 +1,6 @@
 import { PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_700Bold, useFonts } from '@expo-google-fonts/plus-jakarta-sans';
 import { Stack } from 'expo-router';
-import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 
 export const unstable_settings = {
@@ -38,7 +38,7 @@ function RootLayoutNav() {
     // during slide transitions — without this, the space "behind" the
     // navigator (revealed for a frame while a screen slides across it)
     // falls back to the native default background instead of your theme.
-    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -170,7 +170,7 @@ function RootLayoutNav() {
           options={{ headerShown: false }}
         />
       </Stack>
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
