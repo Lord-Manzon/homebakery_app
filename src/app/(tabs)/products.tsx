@@ -14,7 +14,8 @@ import {
   View,
 } from 'react-native';
 import FAB from '../../components/common/FAB';
-import { useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
+import { Spacing } from '../../constants/theme';
+import { useTabBarHeight, useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getIngredients } from '../../services/ingredients';
 import {
@@ -89,6 +90,7 @@ function formatProfitLabel(profits: number[]): string {
 export default function ProductsScreen() {
   const Colors = useTheme();
   const { onScroll } = useTabBarVisibility();
+  const tabBarHeight = useTabBarHeight();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [products, setProducts] = useState<Product[]>([]);
   const [recipeIngredients, setRecipeIngredients] = useState<RecipeIngredient[]>([]);
@@ -377,6 +379,7 @@ export default function ProductsScreen() {
         style={styles.list}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + Spacing.two }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -572,7 +575,7 @@ export default function ProductsScreen() {
           );
         }}
       />
-      <FAB onPress={() => router.push('/modals/add-product')} />
+      <FAB onPress={() => router.push('/modals/add-product')} bottomOffset={tabBarHeight} />
 
       {/* Metrics glossary -- opened from the native header's info icon (see
           _layout.tsx + utils/eventBus.ts), not repeated per card or as a
