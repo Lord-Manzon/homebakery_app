@@ -22,6 +22,7 @@ type PopupSheetProps = {
   title: string;
   children: ReactNode;
   onClose?: () => void;
+  headerRight?: ReactNode; // replaces the default X button when provided
 };
 
 const CLOSE_DRAG_THRESHOLD = 100;
@@ -40,7 +41,7 @@ const CLOSE_DRAG_THRESHOLD = 100;
 // optimization, which silently breaks gesture-handler's hit-testing on
 // everything except a child with its own native rendering (like the close
 // button), which is why swipe only worked directly over the X before.
-export default function PopupSheet({ title, children, onClose }: PopupSheetProps) {
+export default function PopupSheet({ title, children, onClose, headerRight }: PopupSheetProps) {
   const Colors = useTheme();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const translateY = useSharedValue(0);
@@ -84,9 +85,11 @@ export default function PopupSheet({ title, children, onClose }: PopupSheetProps
             <View style={styles.dragHandle} />
             <View style={styles.header}>
               <Text style={styles.title}>{title}</Text>
-              <TouchableOpacity onPress={close} style={styles.closeBtn}>
-                <X size={22} color={Colors.textPrimary} />
-              </TouchableOpacity>
+              {headerRight ?? (
+                <TouchableOpacity onPress={close} style={styles.closeBtn}>
+                  <X size={22} color={Colors.textPrimary} />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </GestureDetector>
