@@ -14,7 +14,7 @@ import { FadeInView } from '../../components/motion/FadeInView';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { Fonts, Radius, Shadows, Spacing } from '../../constants/theme';
-import { useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
+import { useTabBarHeight, useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { DashboardStats, getDashboardStats } from '../../services/dashboard';
 import { getSettings } from '../../services/settings';
@@ -34,6 +34,7 @@ export default function DashboardScreen() {
   const Colors = useTheme();
   const insets = useSafeAreaInsets();
   const { onScroll } = useTabBarVisibility();
+  const tabBarHeight = useTabBarHeight();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -208,7 +209,7 @@ export default function DashboardScreen() {
         />
       </FadeInView>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: tabBarHeight + Spacing.two }} />
     </ScrollView>
   );
 }
