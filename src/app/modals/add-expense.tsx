@@ -13,7 +13,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { addExpense, addIngredientPurchaseExpense } from '../../services/expenses';
 import { getIngredients } from '../../services/ingredients';
+import { getSettings } from '../../services/settings';
 import { Expense, Ingredient } from '../../types';
+import { getCurrencyPrefix } from '../../utils/currency';
 
 const EXPENSE_TYPES = [
   { key: 'ingredient_purchase', label: '🛒 Ingredient Purchase' },
@@ -50,6 +52,11 @@ export default function AddExpenseModal() {
   const [ingredientSearch, setIngredientSearch] = useState(params.prefill_ingredient_name ?? '');
   const [showDropdown, setShowDropdown] = useState(false);
   const [purchasedQuantity, setPurchasedQuantity] = useState('');
+  const [currencyPrefix, setCurrencyPrefix] = useState('₱');
+
+  useEffect(() => {
+    getSettings().then((settings) => setCurrencyPrefix(getCurrencyPrefix(settings?.currency)));
+  }, []);
 
   useEffect(() => {
     getIngredients().then((data) => {
@@ -215,7 +222,7 @@ export default function AddExpenseModal() {
       {/* Amount */}
       <View style={styles.section}>
         <Text style={styles.label}>
-          Amount (₱) <Text style={styles.required}>*</Text>
+          Amount ({currencyPrefix}) <Text style={styles.required}>*</Text>
         </Text>
         <TextInput
           style={[styles.input, errors.amount ? styles.inputError : null]}

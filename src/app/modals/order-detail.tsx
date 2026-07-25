@@ -1,5 +1,5 @@
-import { Calendar, CheckCircle2, Clock, MapPin, MessageCircle, Pencil, ShoppingBag, Trash2 } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Calendar, CheckCircle2, Clock, MapPin, MessageCircle, Pencil, ShoppingBag, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,7 +20,9 @@ import {
   updatePaymentStatus,
 } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
+import { getSettings } from '../../services/settings';
 import { Order, OrderItem, Product, ProductVariant } from '../../types';
+import { getCurrencyPrefix } from '../../utils/currency';
 
 export default function OrderDetailModal() {
   const Colors = useTheme();
@@ -31,6 +33,7 @@ export default function OrderDetailModal() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [currencyPrefix, setCurrencyPrefix] = useState('₱');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirm, setConfirm] = useState<{
@@ -42,16 +45,17 @@ export default function OrderDetailModal() {
   } | null>(null);
 
   async function load() {
-    const [orderData, itemsData, productsData] = await Promise.all([
+    const [orderData, itemsData, productsData, settings] = await Promise.all([
       getOrderById(id),
       getOrderItems(id),
       getProducts(),
+      getSettings(),
     ]);
 
     setOrder(orderData);
-    console.log('order data:', JSON.stringify(orderData));
     setOrderItems(itemsData);
     setProducts(productsData);
+    setCurrencyPrefix(getCurrencyPrefix(settings?.currency));
 
     if (productsData.length > 0) {
       const allVariants: ProductVariant[] = [];
@@ -254,7 +258,7 @@ export default function OrderDetailModal() {
               </Text>
             </View>
             <Text style={styles.orderItemPrice}>
-              ₱{item.subtotal.toFixed(2)}
+              {currencyPrefix}{item.subtotal.toFixed(2)}
             </Text>
           </View>
         ))}
@@ -265,14 +269,14 @@ export default function OrderDetailModal() {
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Delivery Fee</Text>
             <Text style={styles.totalValue}>
-              ₱{order.delivery_fee.toFixed(2)}
+              {currencyPrefix}{order.delivery_fee.toFixed(2)}
             </Text>
           </View>
         )}
         <View style={styles.totalRow}>
           <Text style={styles.totalFinalLabel}>Total</Text>
           <Text style={styles.totalFinalValue}>
-            ₱{order.total_amount.toFixed(2)}
+            {currencyPrefix}{order.total_amount.toFixed(2)}
           </Text>
         </View>
       </View>

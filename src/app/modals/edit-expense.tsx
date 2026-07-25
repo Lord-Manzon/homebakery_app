@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -12,6 +12,8 @@ import {
 import PopupSheet from '../../components/common/PopupSheet';
 import { useTheme } from '../../contexts/ThemeContext';
 import { updateExpense } from '../../services/expenses';
+import { getSettings } from '../../services/settings';
+import { getCurrencyPrefix } from '../../utils/currency';
 
 const TYPE_LABELS: Record<string, string> = {
   ingredient_purchase: '🛒 Ingredient Purchase',
@@ -34,6 +36,11 @@ export default function EditExpenseModal() {
   const [date, setDate] = useState(params.expense_date as string ?? '');
   const [notes, setNotes] = useState(params.notes as string ?? '');
   const [saving, setSaving] = useState(false);
+  const [currencyPrefix, setCurrencyPrefix] = useState('₱');
+
+  useEffect(() => {
+    getSettings().then((settings) => setCurrencyPrefix(getCurrencyPrefix(settings?.currency)));
+  }, []);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   async function handleSave() {
@@ -97,7 +104,7 @@ export default function EditExpenseModal() {
         {/* Amount */}
         <View style={styles.section}>
           <Text style={styles.label}>
-            Amount (₱) <Text style={styles.required}>*</Text>
+            Amount ({currencyPrefix}) <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
             style={[styles.input, errors.amount ? styles.inputError : null]}

@@ -1,6 +1,6 @@
-import { AlertTriangle, Minus, Plus, PlusCircle, XCircle } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
+import { AlertTriangle, Minus, Plus, PlusCircle, XCircle } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,7 +20,9 @@ import {
   updateOrderWithItems,
 } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
+import { getSettings } from '../../services/settings';
 import { Product, ProductVariant } from '../../types';
+import { getCurrencyPrefix } from '../../utils/currency';
 
 type OrderItemDraft = {
   product: Product;
@@ -73,18 +75,21 @@ export default function EditOrderModal() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [currencyPrefix, setCurrencyPrefix] = useState('₱');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Load order, its items, and all products to allow re-picking
   useEffect(() => {
     async function load() {
-      const [order, items, allProducts] = await Promise.all([
+      const [order, items, allProducts, settings] = await Promise.all([
         getOrderById(id),
         getOrderItems(id),
         getProducts(),
+        getSettings(),
       ]);
 
       setProducts(allProducts);
+      setCurrencyPrefix(getCurrencyPrefix(settings?.currency));
 
       if (order) {
         setCustomerName(order.customer_name);
@@ -430,7 +435,7 @@ export default function EditOrderModal() {
             </View>
             <View style={styles.orderItemRight}>
               <Text style={styles.orderItemPrice}>
-                ₱{(item.variant.selling_price * item.quantity).toFixed(2)}
+                {currencyPrefix}{(item.variant.selling_price * item.quantity).toFixed(2)}
               </Text>
               <TouchableOpacity onPress={() => handleRemoveItem(index)}>
                 <XCircle size={20} color={Colors.error} />
@@ -497,7 +502,7 @@ export default function EditOrderModal() {
                     onPress={() => setSelectedVariant(variant)}
                   >
                     <Text style={styles.variantItemName}>{variant.name}</Text>
-                    <Text style={styles.variantItemPrice}>₱{variant.selling_price.toFixed(2)}</Text>
+                    <Text style={styles.variantItemPrice}>{currencyPrefix}{variant.selling_price.toFixed(2)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -549,17 +554,17 @@ export default function EditOrderModal() {
         <View style={styles.totalCard}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>₱{subtotal.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>{currencyPrefix}{subtotal.toFixed(2)}</Text>
           </View>
           {orderType === 'delivery' && parseFloat(deliveryFee) > 0 && (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Delivery Fee</Text>
-              <Text style={styles.totalValue}>₱{parseFloat(deliveryFee).toFixed(2)}</Text>
+              <Text style={styles.totalValue}>{currencyPrefix}{parseFloat(deliveryFee).toFixed(2)}</Text>
             </View>
           )}
           <View style={[styles.totalRow, styles.totalFinal]}>
             <Text style={styles.totalFinalLabel}>Total</Text>
-            <Text style={styles.totalFinalValue}>₱{total.toFixed(2)}</Text>
+            <Text style={styles.totalFinalValue}>{currencyPrefix}{total.toFixed(2)}</Text>
           </View>
         </View>
       )}

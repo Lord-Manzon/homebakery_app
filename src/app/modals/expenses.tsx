@@ -1,5 +1,5 @@
-import { Plus, Receipt, Trash2, X } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Plus, Receipt, Trash2, X } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -13,7 +13,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { deleteExpense, getExpenses, getExpenseSummary } from '../../services/expenses';
+import { getSettings } from '../../services/settings';
 import { Expense } from '../../types';
+import { getCurrencyPrefix } from '../../utils/currency';
 
 const TYPE_LABELS: Record<string, string> = {
   ingredient_purchase: '🛒 Ingredient',
@@ -29,6 +31,7 @@ export default function ExpensesScreen() {
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const insets = useSafeAreaInsets();
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [currencyPrefix, setCurrencyPrefix] = useState('₱');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirm, setConfirm] = useState<{
@@ -39,8 +42,9 @@ export default function ExpensesScreen() {
   } | null>(null);
 
   async function load() {
-    const data = await getExpenses();
+    const [data, settings] = await Promise.all([getExpenses(), getSettings()]);
     setExpenses(data);
+    setCurrencyPrefix(getCurrencyPrefix(settings?.currency));
     setLoading(false);
   }
 
@@ -89,15 +93,15 @@ export default function ExpensesScreen() {
       {/* Summary */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryNumber}>₱{fmt(summary.today)}</Text>
+          <Text style={styles.summaryNumber}>{currencyPrefix}{fmt(summary.today)}</Text>
           <Text style={styles.summaryLabel}>Today</Text>
         </View>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryNumber}>₱{fmt(summary.thisWeek)}</Text>
+          <Text style={styles.summaryNumber}>{currencyPrefix}{fmt(summary.thisWeek)}</Text>
           <Text style={styles.summaryLabel}>This Week</Text>
         </View>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryNumber}>₱{fmt(summary.thisMonth)}</Text>
+          <Text style={styles.summaryNumber}>{currencyPrefix}{fmt(summary.thisMonth)}</Text>
           <Text style={styles.summaryLabel}>This Month</Text>
         </View>
       </View>
@@ -145,7 +149,7 @@ export default function ExpensesScreen() {
               <Text style={styles.expenseDate}>{item.expense_date}</Text>
             </View>
             <View style={styles.cardRight}>
-              <Text style={styles.amount}>₱{fmt(item.amount)}</Text>
+              <Text style={styles.amount}>{currencyPrefix}{fmt(item.amount)}</Text>
               <TouchableOpacity onPress={() => handleDelete(item)}>
                 <Trash2 size={18} color={Colors.error} />
               </TouchableOpacity>
