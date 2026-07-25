@@ -1,6 +1,22 @@
 import { createContext, useContext, useRef } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Must match the tabBarStyle height/paddingBottom set in (tabs)/_layout.tsx.
+const TAB_BAR_BASE_HEIGHT = 60;
+
+/**
+ * Total on-screen height of the floating tab bar (base height + safe-area
+ * bottom inset). The tab bar is `position: 'absolute'` (see _layout.tsx —
+ * required so hiding it doesn't leave behind an empty reserved slot), so
+ * every scrollable screen needs to add this as bottom padding itself or
+ * its last item/content will render underneath the floating bar.
+ */
+export function useTabBarHeight() {
+  const insets = useSafeAreaInsets();
+  return TAB_BAR_BASE_HEIGHT + insets.bottom;
+}
 
 // Tuning knobs for the hide/show feel:
 const HIDE_AFTER_PX = 10;     // downward movement needed before hiding (ignores tiny jitter)
