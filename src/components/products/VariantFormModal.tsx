@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTheme } from '../../contexts/ThemeContext';
 import { addVariant, updateVariant } from '../../services/products';
 import { ProductVariant } from '../../types';
 import {
-    calculateBufferAmount,
-    calculateSuggestedPrice,
-    calculateVariantTotalCost,
+  calculateBufferAmount,
+  calculateSuggestedPrice,
+  calculateVariantTotalCost,
 } from '../../utils/costing';
 import PopupSheet from '../common/PopupSheet';
 import { InfoModal } from '../ui/InfoModal';
@@ -53,6 +54,7 @@ export function VariantFormModal({
   const [sellingPrice, setSellingPrice] = useState('');
   const [packaging, setPackaging] = useState('');
   const [packagingCost, setPackagingCost] = useState('');
+  const [piecesPerVariant, setPiecesPerVariant] = useState('1');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -66,22 +68,26 @@ export function VariantFormModal({
       setSellingPrice(String(variant.selling_price));
       setPackaging(variant.packaging ?? '');
       setPackagingCost(String(variant.packaging_cost ?? 0));
+      setPiecesPerVariant(String(variant.pieces_per_variant ?? 1));
     } else {
       setName('');
       setSellingPrice('');
       setPackaging('');
       setPackagingCost('');
+      setPiecesPerVariant('1');
     }
     setErrors({});
   }, [visible, variant]);
 
   const packagingCostNum = parseFloat(packagingCost) || 0;
-  const bufferAmount = calculateBufferAmount(costPerPiece, bufferPercent);
-  const totalCost = calculateVariantTotalCost(costPerPiece, packagingCostNum, bufferPercent);
+  const piecesNum = parseFloat(piecesPerVariant) || 1;
+  const scaledIngredientCost = costPerPiece * piecesNum;
+  const bufferAmount = calculateBufferAmount(scaledIngredientCost, bufferPercent);
+  const totalCost = calculateVariantTotalCost(costPerPiece, packagingCostNum, bufferPercent, piecesNum);
   const suggestedPrice = calculateSuggestedPrice(totalCost, markupPercent);
 
   const breakdownMessage =
-    `Recipe cost: ${cur}${costPerPiece.toFixed(2)}\n` +
+    `Recipe cost (${piecesNum} piece${piecesNum === 1 ? '' : 's'}): ${cur}${scaledIngredientCost.toFixed(2)}\n` +
     `Buffer (${bufferPercent}%): ${cur}${bufferAmount.toFixed(2)}\n` +
     `Packaging: ${cur}${packagingCostNum.toFixed(2)}\n` +
     `Total cost: ${cur}${totalCost.toFixed(2)}\n` +
@@ -106,6 +112,7 @@ export function VariantFormModal({
       selling_price: parseFloat(sellingPrice) || 0,
       packaging: packaging.trim() || null,
       packaging_cost: packagingCostNum,
+      pieces_per_variant: piecesNum,
     };
 
     const success = isEdit
@@ -124,11 +131,29 @@ export function VariantFormModal({
 
   if (!visible) return null;
 
+  const headerSaveButton = (
+    <TouchableOpacity
+      onPress={handleSave}
+      disabled={saving}
+      style={[styles.headerSaveBtn, saving && styles.saveButtonDisabled]}
+    >
+      {saving ? (
+        <ActivityIndicator color="#fff" size="small" />
+      ) : (
+        <Text style={styles.headerSaveBtnText}>Save</Text>
+      )}
+    </TouchableOpacity>
+  );
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-      <PopupSheet title={isEdit ? 'Edit Variant' : 'Add Variant'} onClose={onClose}>
-        <View style={styles.container}>
+      <PopupSheet
+        title={isEdit ? 'Edit Variant' : 'Add Variant'}
+        onClose={onClose}
+        headerRight={headerSaveButton}
+      >
+        <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
 
           <View style={styles.section}>
             <Text style={styles.label}>
@@ -185,6 +210,21 @@ export function VariantFormModal({
             />
           </View>
 
+          <View style={styles.section}>
+            <Text style={styles.label}>Pieces in this variant</Text>
+            <Text style={styles.hint}>
+              How many individual pieces this variant contains — e.g. "Box of 4" → 4. Leave as 1 for a single-piece variant.
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="1"
+              placeholderTextColor={Colors.textMuted}
+              value={piecesPerVariant}
+              onChangeText={setPiecesPerVariant}
+              keyboardType="numeric"
+            />
+          </View>
+
           <View style={styles.suggestedPanel}>
             <View style={styles.suggestedHeaderRow}>
               <Text style={styles.suggestedLabel}>Suggested Price</Text>
@@ -206,16 +246,6 @@ export function VariantFormModal({
 
           {errors.general ? <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 8 }]}>{errors.general}</Text> : null}
 
-          <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={saving}
-          >
-            {saving ? <ActivityIndicator color="#fff" /> : (
-              <Text style={styles.saveButtonText}>{isEdit ? 'Save Changes' : 'Save Variant'}</Text>
-            )}
-          </TouchableOpacity>
-
           {isEdit && onArchive && (
             <TouchableOpacity
               style={styles.archiveButton}
@@ -227,7 +257,7 @@ export function VariantFormModal({
           )}
 
           <View style={{ height: 24 }} />
-        </View>
+        </ScrollView>
       </PopupSheet>
       </GestureHandlerRootView>
 
@@ -273,9 +303,16 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     borderRadius: 8, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.primary,
   },
   useSuggestedButtonText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
-  saveButton: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
   saveButtonDisabled: { opacity: 0.6 },
-  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  headerSaveBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minWidth: 64,
+    alignItems: 'center',
+  },
+  headerSaveBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   archiveButton: { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   archiveButtonText: { color: Colors.error, fontSize: 14, fontWeight: '600' },
 });
