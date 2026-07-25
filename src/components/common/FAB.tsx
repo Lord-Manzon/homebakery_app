@@ -4,11 +4,17 @@ import { Colors } from '../../constants/theme';
 
 type Props = {
   onPress: () => void;
+  /** Extra bottom offset — pass the floating tab bar's height so the FAB doesn't sit behind it (see useTabBarHeight) */
+  bottomOffset?: number;
 };
 
-export default function FAB({ onPress }: Props) {
+export default function FAB({ onPress, bottomOffset = 0 }: Props) {
   return (
-    <TouchableOpacity style={styles.fab} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity
+      style={[styles.fab, { bottom: 24 + bottomOffset }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
       <Plus size={30} color="#fff" />
     </TouchableOpacity>
   );
@@ -17,7 +23,6 @@ export default function FAB({ onPress }: Props) {
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    bottom: 24,
     right: 24,
     width: 56,
     height: 56,
