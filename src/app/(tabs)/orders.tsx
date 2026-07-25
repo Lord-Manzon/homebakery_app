@@ -1,5 +1,5 @@
-import { AlertCircle, Bike, Clock, MapPin, Receipt, Store, type LucideIcon } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { AlertCircle, Bike, Clock, MapPin, Menu, Receipt, Store, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -10,15 +10,19 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FAB from '../../components/common/FAB';
-import { useTheme } from '../../contexts/ThemeContext';
-import { Radius } from '../../constants/theme';
-import { useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
-import { Card } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
 import { PressableScale } from '../../components/motion/PressableScale';
+import { Badge } from '../../components/ui/Badge';
+import { Card } from '../../components/ui/Card';
+import { Radius, Spacing } from '../../constants/theme';
+import { useTabBarHeight, useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
+import { getSettings } from '../../services/settings';
 import { Order } from '../../types';
+import { getCurrencyPrefix } from '../../utils/currency';
+import { eventBus } from '../../utils/eventBus';
 
 type TabType = 'active' | 'completed';
 type FilterType = 'delivery' | 'pickup' | 'unpaid';
@@ -34,11 +38,14 @@ function formatTime(time: string): string {
 
 export default function OrdersScreen() {
   const Colors = useTheme();
+  const insets = useSafeAreaInsets();
   const { onScroll: onTabBarScroll } = useTabBarVisibility();
+  const tabBarHeight = useTabBarHeight();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [orders, setOrders] = useState<Order[]>([]);
   const [itemSummaries, setItemSummaries] = useState<Record<string, string>>({});
+  const [currencySymbol, setCurrencySymbol] = useState('₱');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<FilterType>>(new Set());
@@ -55,8 +62,9 @@ export default function OrdersScreen() {
   } | null>(null);
 
   async function load(tab: TabType = activeTab) {
-    const data = await getOrders(tab);
+    const [data, settings] = await Promise.all([getOrders(tab), getSettings()]);
     setOrders(data);
+    setCurrencySymbol(getCurrencyPrefix(settings?.currency));
     const summaries = await getOrderItemsSummary(data.map((o) => o.id));
     setItemSummaries(summaries);
     setLoading(false);
@@ -187,10 +195,16 @@ export default function OrdersScreen() {
   function renderHeaderContent() {
     return (
       <>
+        <View style={[styles.topRow, { paddingTop: insets.top + Spacing.two }]}>
+          <TouchableOpacity onPress={() => eventBus.emit('sidebar:open')} hitSlop={12}>
+            <Menu size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
         {activeTab === 'active' && (
           <View style={styles.heroCard}>
             <Text style={styles.heroLabel}>Expected</Text>
-            <Text style={styles.heroValue}>₱{totalRevenue.toFixed(2)}</Text>
+            <Text style={styles.heroValue}>{currencySymbol}{totalRevenue.toFixed(2)}</Text>
             <View style={styles.heroDivider} />
             <View style={styles.heroSplitRow}>
               <View style={styles.heroSplitItem}>
@@ -311,7 +325,7 @@ export default function OrdersScreen() {
           keyExtractor={(item: Order) => item.id}
           onScroll={handleScroll}
           scrollEventThrottle={16}
-          contentContainerStyle={{ paddingTop: collapsibleHeight }}
+          contentContainerStyle={{ paddingTop: collapsibleHeight, paddingBottom: tabBarHeight + Spacing.two }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -377,7 +391,7 @@ export default function OrdersScreen() {
                   )}
                 </View>
                 <Text style={styles.totalAmount}>
-                  ₱{item.total_amount.toFixed(2)}
+                  {currencySymbol}{item.total_amount.toFixed(2)}
                 </Text>
               </View>
 
@@ -413,7 +427,7 @@ export default function OrdersScreen() {
         />
       )}
 
-      <FAB onPress={() => router.push('/modals/add-order')} />
+      <FAB onPress={() => router.push('/modals/add-order')} bottomOffset={tabBarHeight} />
 
       <Modal
         visible={!!confirm}
@@ -476,6 +490,12 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     justifyContent: 'center',
   },
 
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
   heroCard: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
