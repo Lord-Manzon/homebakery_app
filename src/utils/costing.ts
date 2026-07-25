@@ -68,13 +68,23 @@ export function calculateBufferAmount(
 }
 
 // Full landed cost for one unit of a specific variant: raw ingredient cost
-// + that variant's packaging + the buffer safety margin.
+// scaled by how many pieces this variant actually contains (e.g. a "Box of
+// 4" needs 4x the single-piece ingredient cost, not 1x) + that variant's
+// packaging + the buffer safety margin (buffer is a % of the scaled
+// ingredient cost, since a bigger box has proportionally more waste risk
+// too, not a fixed amount regardless of quantity).
 export function calculateVariantTotalCost(
   costPerPiece: number,
   packagingCost: number,
-  bufferPercent: number
+  bufferPercent: number,
+  piecesPerVariant: number = 1
 ): number {
-  return costPerPiece + packagingCost + calculateBufferAmount(costPerPiece, bufferPercent);
+  const scaledIngredientCost = costPerPiece * piecesPerVariant;
+  return (
+    scaledIngredientCost +
+    packagingCost +
+    calculateBufferAmount(scaledIngredientCost, bufferPercent)
+  );
 }
 
 export function calculateVariantProfit(
