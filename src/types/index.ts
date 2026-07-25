@@ -118,6 +118,9 @@ export type Settings = {
   id: string;
   business_name: string;
   business_address: string | null;
+  origin_lat: number | null;
+  origin_lng: number | null;
+  delivery_rate_per_km: number;
   currency: string;
   distance_unit: 'km' | 'miles';
   theme: 'light' | 'dark' | 'system';

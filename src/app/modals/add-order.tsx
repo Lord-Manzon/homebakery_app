@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { AlertTriangle, Minus, Plus, PlusCircle, XCircle } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -14,10 +14,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
+import { AddressSuggestion, autocompleteAddress, calculateDistanceKm } from '../../services/distance';
 import { createOrder } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
 import { getSettings } from '../../services/settings';
-import { Product, ProductVariant } from '../../types';
+import { Product, ProductVariant, Settings } from '../../types';
 import { getCurrencyPrefix } from '../../utils/currency';
 
 type OrderItemDraft = {
@@ -71,16 +72,54 @@ export default function AddOrderModal() {
   const [saving, setSaving] = useState(false);
   const [currencyPrefix, setCurrencyPrefix] = useState('₱');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     async function load() {
-      const [data, settings] = await Promise.all([getProducts(), getSettings()]);
+      const [data, settingsData] = await Promise.all([getProducts(), getSettings()]);
       setProducts(data);
-      setCurrencyPrefix(getCurrencyPrefix(settings?.currency));
+      setSettings(settingsData);
+      setCurrencyPrefix(getCurrencyPrefix(settingsData?.currency));
       setLoading(false);
     }
     load();
   }, []);
+
+  function handleAddressChange(text: string) {
+    setDeliveryAddress(text);
+    setErrors((e) => ({ ...e, deliveryAddress: '' }));
+    setDistanceKm(null);
+
+    if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
+    addressDebounceRef.current = setTimeout(async () => {
+      const bias =
+        settings?.origin_lat && settings?.origin_lng
+          ? { lat: settings.origin_lat, lng: settings.origin_lng }
+          : undefined;
+      const results = await autocompleteAddress(text, bias);
+      setAddressSuggestions(results);
+    }, 400);
+  }
+
+  function handleSelectSuggestion(suggestion: AddressSuggestion) {
+    setDeliveryAddress(suggestion.label);
+    setAddressSuggestions([]);
+
+    if (settings?.origin_lat && settings?.origin_lng) {
+      const km = calculateDistanceKm(
+        settings.origin_lat,
+        settings.origin_lng,
+        suggestion.lat,
+        suggestion.lng
+      );
+      setDistanceKm(km);
+      const suggestedFee = km * (settings.delivery_rate_per_km ?? 0);
+      setDeliveryFee(suggestedFee.toFixed(2));
+    }
+  }
 
   useEffect(() => {
     async function loadVariants() {
@@ -259,11 +298,32 @@ export default function AddOrderModal() {
             placeholder="Enter delivery address..."
             placeholderTextColor={Colors.textMuted}
             value={deliveryAddress}
-            onChangeText={(t) => { setDeliveryAddress(t); setErrors((e) => ({ ...e, deliveryAddress: '' })); }}
+            onChangeText={handleAddressChange}
             multiline
             numberOfLines={2}
           />
           {errors.deliveryAddress ? <Text style={styles.errorText}>{errors.deliveryAddress}</Text> : null}
+
+          {addressSuggestions.length > 0 && (
+            <View style={styles.suggestionList}>
+              {addressSuggestions.map((s, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.suggestionItem}
+                  onPress={() => handleSelectSuggestion(s)}
+                >
+                  <Text style={styles.suggestionText}>{s.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {distanceKm !== null && (
+            <Text style={styles.distanceHint}>
+              {distanceKm.toFixed(1)} km · Suggested fee {currencyPrefix}
+              {(distanceKm * (settings?.delivery_rate_per_km ?? 0)).toFixed(2)}
+            </Text>
+          )}
         </View>
       )}
 
@@ -930,5 +990,28 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     color: Colors.error,
     marginTop: 4,
     fontWeight: '500',
+  },
+  suggestionList: {
+    marginTop: 4,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  suggestionText: {
+    fontSize: 13,
+    color: Colors.textPrimary,
+  },
+  distanceHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 6,
   },
 });
