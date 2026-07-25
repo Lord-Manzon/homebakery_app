@@ -1,5 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
 import { AlertCircle, Bike, Clock, MapPin, Receipt, Store, type LucideIcon } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -11,11 +11,12 @@ import {
   View
 } from 'react-native';
 import FAB from '../../components/common/FAB';
-import { PressableScale } from '../../components/motion/PressableScale';
-import { Badge } from '../../components/ui/Badge';
-import { Card } from '../../components/ui/Card';
-import { Radius } from '../../constants/theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import { Radius } from '../../constants/theme';
+import { useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
+import { Card } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { PressableScale } from '../../components/motion/PressableScale';
 import { getOrderItemsSummary, getOrders, groupOrdersByDate, markDelivered, updatePaymentStatus } from '../../services/orders';
 import { Order } from '../../types';
 
@@ -33,6 +34,7 @@ function formatTime(time: string): string {
 
 export default function OrdersScreen() {
   const Colors = useTheme();
+  const { onScroll: onTabBarScroll } = useTabBarVisibility();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -162,7 +164,7 @@ export default function OrdersScreen() {
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: true }
+    { useNativeDriver: true, listener: onTabBarScroll }
   );
 
   const headerTranslateY = collapsibleHeight > 0

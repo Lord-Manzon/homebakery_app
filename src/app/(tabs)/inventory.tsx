@@ -1,5 +1,5 @@
-import { AlertTriangle, Minus, Package, Pencil, Plus, PlusCircle, Search, Trash2, UtensilsCrossed, X, XCircle } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { AlertTriangle, Minus, Package, Pencil, Plus, PlusCircle, Search, Trash2, UtensilsCrossed, X, XCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import FAB from '../../components/common/FAB';
+import { useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   adjustStock,
@@ -24,6 +25,7 @@ import { Ingredient } from '../../types';
 
 export default function InventoryScreen() {
   const Colors = useTheme();
+  const { onScroll } = useTabBarVisibility();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [filtered, setFiltered] = useState<Ingredient[]>([]);
@@ -297,6 +299,8 @@ export default function InventoryScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

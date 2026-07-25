@@ -1,6 +1,6 @@
-import { Archive, Calculator, ChevronDown, ChevronUp, Image as ImageIcon, Pencil, Search, Store, Tag, XCircle } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
+import { Archive, Calculator, ChevronDown, ChevronUp, Image as ImageIcon, Pencil, Search, Store, Tag, XCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import FAB from '../../components/common/FAB';
+import { useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getIngredients } from '../../services/ingredients';
 import {
@@ -87,6 +88,7 @@ function formatProfitLabel(profits: number[]): string {
 
 export default function ProductsScreen() {
   const Colors = useTheme();
+  const { onScroll } = useTabBarVisibility();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [products, setProducts] = useState<Product[]>([]);
   const [recipeIngredients, setRecipeIngredients] = useState<RecipeIngredient[]>([]);
@@ -373,6 +375,8 @@ export default function ProductsScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         style={styles.list}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
