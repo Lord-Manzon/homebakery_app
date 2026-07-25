@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AnimatedTabBar } from '../../components/navigation/AnimatedTabBar';
+import { TabBarVisibilityProvider } from '../../contexts/TabBarVisibilityContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getSettings } from '../../services/settings';
 import { eventBus } from '../../utils/eventBus';
@@ -84,7 +86,7 @@ export default function TabsLayout() {
   );
 
   return (
-    <>
+    <TabBarVisibilityProvider>
       {/* Sidebar Drawer */}
       <Modal
         visible={showSidebar}
@@ -173,6 +175,7 @@ export default function TabsLayout() {
       </Modal>
 
       <Tabs
+        tabBar={(props) => <AnimatedTabBar {...props} />}
         screenOptions={{
           headerShown: true,
           headerRight: () => <MenuButton />,
@@ -259,7 +262,7 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-    </>
+    </TabBarVisibilityProvider>
   );
 }
 
