@@ -3,6 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   ChefHat,
   ChevronDown,
+  ChevronLeft,
   ChevronUp,
   Image as ImageIcon,
   Info,
@@ -209,7 +210,7 @@ export default function ProductDetailModal() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-          <ChevronDown size={22} color={Colors.textPrimary} style={{ transform: [{ rotate: '90deg' }] }} />
+          <ChevronLeft size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity
