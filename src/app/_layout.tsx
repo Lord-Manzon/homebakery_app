@@ -97,7 +97,8 @@ function RootLayoutNav() {
             presentation: 'transparentModal',
             headerShown: false,
             animation: 'fade',
-          }}
+            detachPreviousScreen: false,
+          } as any}
         />
         <Stack.Screen
           name="modals/edit-variant"
@@ -105,7 +106,8 @@ function RootLayoutNav() {
             presentation: 'transparentModal',
             headerShown: false,
             animation: 'fade',
-          }}
+            detachPreviousScreen: false,
+          } as any}
         />
         <Stack.Screen
           name="modals/add-recipe-ingredient"
