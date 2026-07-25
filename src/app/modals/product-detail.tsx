@@ -178,7 +178,12 @@ export default function ProductDetailModal() {
   const costPerPiece = calculateCostPerPiece(recipeCost, product.yield);
 
   const variantMetrics = variants.map((v) => {
-    const totalCost = calculateVariantTotalCost(costPerPiece, v.packaging_cost, product.buffer_percent);
+    const totalCost = calculateVariantTotalCost(
+      costPerPiece,
+      v.packaging_cost,
+      product.buffer_percent,
+      v.pieces_per_variant
+    );
     const profit = calculateVariantProfit(v.selling_price, totalCost);
     const margin = calculateMarginPercent(v.selling_price, profit);
     return { variant: v, totalCost, profit, margin };
