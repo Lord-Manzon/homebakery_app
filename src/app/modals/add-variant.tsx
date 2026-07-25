@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,8 +10,20 @@ import {
   View,
 } from 'react-native';
 import PopupSheet from '../../components/common/PopupSheet';
+import { InfoModal } from '../../components/ui/InfoModal';
 import { useTheme } from '../../contexts/ThemeContext';
-import { addVariant } from '../../services/products';
+import { getIngredients } from '../../services/ingredients';
+import { addVariant, getProductById, getRecipeIngredients } from '../../services/products';
+import { getSettings } from '../../services/settings';
+import { Ingredient, Product, RecipeIngredient, Settings } from '../../types';
+import {
+  calculateBufferAmount,
+  calculateCostPerPiece,
+  calculateRecipeCost,
+  calculateSuggestedPrice,
+  calculateVariantTotalCost,
+} from '../../utils/costing';
+import { getCurrencyPrefix } from '../../utils/currency';
 
 export default function AddVariantModal() {
   const Colors = useTheme();
@@ -24,6 +36,50 @@ export default function AddVariantModal() {
   const [packagingCost, setPackagingCost] = useState('');
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [product, setProduct] = useState<Product | null>(null);
+  const [recipeIngredients, setRecipeIngredients] = useState<RecipeIngredient[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [loadingContext, setLoadingContext] = useState(true);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
+  useEffect(() => {
+    async function loadContext() {
+      const [productData, recipeData, ingredientsData, settingsData] = await Promise.all([
+        getProductById(product_id),
+        getRecipeIngredients(product_id),
+        getIngredients(),
+        getSettings(),
+      ]);
+      setProduct(productData);
+      setRecipeIngredients(recipeData);
+      setIngredients(ingredientsData);
+      setSettings(settingsData);
+      setLoadingContext(false);
+    }
+    loadContext();
+  }, [product_id]);
+
+  const cur = getCurrencyPrefix(settings?.currency);
+  const costPerPiece = product
+    ? calculateCostPerPiece(calculateRecipeCost(recipeIngredients, ingredients), product.yield)
+    : 0;
+  const packagingCostNum = parseFloat(packagingCost) || 0;
+  const bufferAmount = product ? calculateBufferAmount(costPerPiece, product.buffer_percent) : 0;
+  const totalCost = product
+    ? calculateVariantTotalCost(costPerPiece, packagingCostNum, product.buffer_percent)
+    : 0;
+  const suggestedPrice = product ? calculateSuggestedPrice(totalCost, product.markup_percent) : 0;
+
+  const breakdownMessage = product
+    ? `Recipe cost: ${cur}${costPerPiece.toFixed(2)}\n` +
+      `Buffer (${product.buffer_percent}%): ${cur}${bufferAmount.toFixed(2)}\n` +
+      `Packaging: ${cur}${packagingCostNum.toFixed(2)}\n` +
+      `Total cost: ${cur}${totalCost.toFixed(2)}\n` +
+      `Markup (${product.markup_percent}%): +${cur}${(suggestedPrice - totalCost).toFixed(2)}\n` +
+      `Suggested price: ${cur}${suggestedPrice.toFixed(2)}`
+    : '';
 
   async function handleSave() {
     const newErrors: Record<string, string> = {};
@@ -43,7 +99,7 @@ export default function AddVariantModal() {
       name: name.trim(),
       selling_price: parseFloat(sellingPrice) || 0,
       packaging: packaging.trim() || null,
-      packaging_cost: parseFloat(packagingCost) || 0,
+      packaging_cost: packagingCostNum,
       is_archived: false,
     });
 
@@ -119,6 +175,32 @@ export default function AddVariantModal() {
         />
       </View>
 
+      {/* Suggested Price panel */}
+      {loadingContext ? (
+        <View style={styles.suggestedLoading}>
+          <ActivityIndicator color={Colors.primary} size="small" />
+        </View>
+      ) : product && (
+        <View style={styles.suggestedPanel}>
+          <View style={styles.suggestedHeaderRow}>
+            <Text style={styles.suggestedLabel}>Suggested Price</Text>
+            <TouchableOpacity onPress={() => setShowBreakdown(true)} hitSlop={8}>
+              <Text style={styles.infoIcon}>ⓘ</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.suggestedValue}>{cur}{suggestedPrice.toFixed(2)}</Text>
+          <Text style={styles.suggestedCaption}>
+            Based on this product's recipe cost, buffer, and markup — a starting point, not a rule.
+          </Text>
+          <TouchableOpacity
+            style={styles.useSuggestedButton}
+            onPress={() => setSellingPrice(suggestedPrice.toFixed(2))}
+          >
+            <Text style={styles.useSuggestedButtonText}>Use {cur}{suggestedPrice.toFixed(2)}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {errors.general ? <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 8 }]}>{errors.general}</Text> : null}
 
       {/* Save Button */}
@@ -136,6 +218,13 @@ export default function AddVariantModal() {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+
+    <InfoModal
+      visible={showBreakdown}
+      title="Suggested price breakdown"
+      message={breakdownMessage}
+      onClose={() => setShowBreakdown(false)}
+    />
     </PopupSheet>
   );
 }
@@ -173,6 +262,61 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     color: Colors.textPrimary,
+  },
+  suggestedLoading: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  suggestedPanel: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  suggestedHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  suggestedLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoIcon: {
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  suggestedValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginTop: 4,
+  },
+  suggestedCaption: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 4,
+    lineHeight: 17,
+  },
+  useSuggestedButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  useSuggestedButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
   },
   saveButton: {
     backgroundColor: Colors.primary,

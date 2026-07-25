@@ -46,6 +46,7 @@ import {
   calculateIngredientCost,
   calculateMarginPercent,
   calculateRecipeCost,
+  calculateSuggestedPrice,
   calculateVariantProfit,
   calculateVariantTotalCost,
 } from '../../utils/costing';
@@ -188,12 +189,16 @@ export default function ProductDetailModal() {
   const selectedMetric =
     variantMetrics.find((m) => m.variant.id === selectedVariantId) ?? best;
 
-  const bestSales = best ? salesStats[best.variant.id] : undefined;
-  const soldLast30 = bestSales?.last30Days ?? 0;
-  const soldAllTime = bestSales?.allTime ?? 0;
+  const selectedSales = selectedMetric ? salesStats[selectedMetric.variant.id] : undefined;
+  const soldLast30 = selectedSales?.last30Days ?? 0;
+  const soldAllTime = selectedSales?.allTime ?? 0;
   const soldDisplay = soldLast30 > 0 ? soldLast30 : soldAllTime;
   const soldLabel = soldLast30 > 0 ? 'Sold (last 30 days)' : 'Sold (all-time)';
-  const profitContribution = best ? best.profit * soldAllTime : 0;
+  const profitContribution = selectedMetric ? selectedMetric.profit * soldAllTime : 0;
+  const selectedRank = selectedMetric
+    ? rankedByProfit.findIndex((m) => m.variant.id === selectedMetric.variant.id) + 1
+    : 0;
+  const isSelectedBest = !!(selectedMetric && best && selectedMetric.variant.id === best.variant.id);
 
   const breakdownBuffer = calculateBufferAmount(costPerPiece, product.buffer_percent);
   const breakdownPackaging = selectedMetric?.variant.packaging_cost ?? 0;
@@ -261,19 +266,25 @@ export default function ProductDetailModal() {
           ) : null}
         </FadeInView>
 
-        {/* Highest Profit accordion */}
-        {best && (
+        {/* Selected Variant accordion */}
+        {selectedMetric && (
           <FadeInView delay={60}>
             <View style={styles.profitCard}>
               <Accordion
                 header={(open) => (
                   <View style={styles.profitHeaderRow}>
-                    <View>
-                      <Text style={styles.profitLabel}>Highest profit</Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.profitLabelRow}>
+                        <Text style={styles.profitLabel}>Profit — {selectedMetric.variant.name}</Text>
+                        {isSelectedBest && (
+                          <View style={styles.bestBadge}>
+                            <Text style={styles.bestBadgeText}>★ Highest Profit</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.profitValue}>
-                        {cur}{best.profit.toFixed(2)}
+                        {cur}{selectedMetric.profit.toFixed(2)}
                       </Text>
-                      <Text style={styles.profitSub}>{best.variant.name} variant</Text>
                     </View>
                     {open ? (
                       <ChevronUp size={18} color={Colors.success} />
@@ -287,7 +298,7 @@ export default function ProductDetailModal() {
                   <View style={styles.profitDetailRow}>
                     <Text style={styles.profitDetailLabel}>Margin</Text>
                     <Text style={styles.profitDetailValue}>
-                      {best.margin !== null ? `${best.margin.toFixed(0)}%` : '—'}
+                      {selectedMetric.margin !== null ? `${selectedMetric.margin.toFixed(0)}%` : '—'}
                     </Text>
                   </View>
                   <View style={styles.profitDetailRow}>
@@ -300,7 +311,7 @@ export default function ProductDetailModal() {
                   </View>
                   <View style={styles.profitDetailRow}>
                     <Text style={styles.profitDetailLabel}>Rank</Text>
-                    <Text style={styles.profitDetailValue}>#{bestRank} of {variants.length}</Text>
+                    <Text style={styles.profitDetailValue}>#{selectedRank} of {variants.length}</Text>
                   </View>
                 </View>
               </Accordion>
@@ -406,8 +417,8 @@ export default function ProductDetailModal() {
                   ]}>
                     <View style={styles.variantLeft}>
                       <Text style={styles.variantName}>{m.variant.name}</Text>
-                      <Text style={[styles.variantProfit, isBest && { color: Colors.success, fontWeight: '700' }]}>
-                        Profit {cur}{m.profit.toFixed(2)}{isBest ? ' · highest' : ''}
+                      <Text style={styles.variantProfit}>
+                        Suggested {cur}{calculateSuggestedPrice(m.totalCost, product.markup_percent).toFixed(2)}
                       </Text>
                     </View>
                     <View style={styles.variantRight}>
@@ -437,7 +448,10 @@ export default function ProductDetailModal() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={[styles.floatingBar, { paddingBottom: insets.bottom + 12 }]}>
+      <View
+        style={[styles.floatingBar, { paddingBottom: insets.bottom + 12 }]}
+        pointerEvents="box-none"
+      >
         <PressableScale
           onPress={() => router.push({ pathname: '/modals/recipe', params: { product_id: id } })}
         >
@@ -643,15 +657,20 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   },
   variantRowBest: { borderColor: Colors.success, borderWidth: 1.5 },
   variantRowSelected: { borderColor: Colors.primary, borderWidth: 1.5 },
+  profitLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  bestBadge: {
+    backgroundColor: Colors.success,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  bestBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
   costingSubtitle: { fontSize: 12, color: Colors.textMuted, marginHorizontal: 16, marginTop: 2 },
   floatingBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.background,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
     paddingHorizontal: 16,
     paddingTop: 10,
   },
@@ -703,8 +722,6 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: Colors.primary,
-    marginHorizontal: 16,
-    marginTop: 20,
     borderRadius: 12,
     paddingVertical: 14,
   },

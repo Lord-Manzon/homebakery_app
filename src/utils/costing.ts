@@ -94,6 +94,10 @@ export function calculateMarginPercent(
   return (profit / sellingPrice) * 100;
 }
 
+export function calculateSuggestedPrice(totalCost: number, markupPercent: number): number {
+  return totalCost * (1 + markupPercent / 100);
+}
+
 // Formats a list of prices as a single value ("₱55.00") or a range
 // ("₱420.00 – ₱680.00") depending on how many distinct prices exist.
 export function formatPriceRange(prices: number[], currency = '₱'): string {
