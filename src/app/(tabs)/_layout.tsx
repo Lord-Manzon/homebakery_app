@@ -189,6 +189,10 @@ export default function TabsLayout() {
             borderTopColor: Colors.border,
             height: 60 + insets.bottom,
             paddingBottom: 8 + insets.bottom,
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
           },
           tabBarLabelStyle: {
             fontSize: 11,
@@ -212,11 +216,10 @@ export default function TabsLayout() {
           name="orders"
           options={{
             title: 'Orders',
-            headerTitle: '',
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Receipt size={size} color={color} />
             ),
-            headerRight: () => <MenuButton />,
           }}
         />
         <Tabs.Screen
