@@ -1,5 +1,5 @@
-import { Calendar as CalendarIcon, X } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Calendar as CalendarIcon, X } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,6 +24,7 @@ import {
   getProductPerformance,
 } from '../../services/reports';
 import { getSettings } from '../../services/settings';
+import { formatDistance } from '../../utils/distance';
 
 type PeriodTab = 'today' | 'week' | 'month' | 'all' | 'custom';
 
@@ -34,6 +35,7 @@ export default function ReportsModal() {
   const now = new Date();
 
   const [currency, setCurrency] = useState('PHP');
+  const [distanceUnit, setDistanceUnit] = useState<'km' | 'miles'>('km');
   const [period, setPeriod] = useState<PeriodTab>('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -78,6 +80,7 @@ export default function ReportsModal() {
     ]);
     setIndicators(ind);
     if (settings?.currency) setCurrency(settings.currency);
+    if (settings?.distance_unit) setDistanceUnit(settings.distance_unit);
     await loadPeriodData(period, customStart, customEnd, referenceDate ?? undefined);
     setLoading(false);
   }
@@ -417,6 +420,12 @@ export default function ReportsModal() {
                         {currency} {fmt(summary?.averageOrderValue ?? 0)}
                       </Text>
                       <Text style={styles.statLabel}>Avg Order{'\n'}Value</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statNumber}>
+                        {formatDistance(summary?.totalDeliveryDistanceKm ?? 0, distanceUnit)}
+                      </Text>
+                      <Text style={styles.statLabel}>Delivery{'\n'}Distance</Text>
                     </View>
                   </View>
                 </>

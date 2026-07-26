@@ -14,6 +14,7 @@ export type PeriodSummary = {
   ordersDelivered: number;
   productsSold: number;
   averageOrderValue: number;
+  totalDeliveryDistanceKm: number;
 };
 
 export type ProductPerformance = {
@@ -44,8 +45,6 @@ export function getDateRange(
   startDate: string;
   endDate: string;
 } {
-  // referenceDate anchors "week"/"month" to a date the user tapped (e.g. the
-  // 15th), instead of always computing relative to right now.
   const now = referenceDate ? new Date(referenceDate + 'T00:00:00') : new Date();
   const todayStr = toDateStr(new Date());
 
@@ -56,13 +55,9 @@ export function getDateRange(
 
   if (period === 'week') {
     const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay()); // back up to Sunday
+    weekStart.setDate(now.getDate() - now.getDay());
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6); // forward to Saturday
-    // Full Sunday–Saturday range, including future days within the week.
-    // Safe to include future dates because the summary queries already
-    // filter to order_status = 'completed' — a future date can only appear
-    // here if an order was genuinely completed against it.
+    weekEnd.setDate(weekStart.getDate() + 6);
     return {
       startDate: toDateStr(weekStart),
       endDate: toDateStr(weekEnd),
@@ -82,7 +77,6 @@ export function getDateRange(
     return { startDate: '2000-01-01', endDate: todayStr };
   }
 
-  // custom
   return {
     startDate: customStart ?? todayStr,
     endDate: customEnd ?? todayStr,
@@ -92,7 +86,7 @@ export function getDateRange(
 // Fetches all day indicators for a given month (for the calendar dots)
 export async function getMonthIndicators(
   year: number,
-  month: number // 1-12
+  month: number
 ): Promise<Record<string, DayIndicator>> {
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const lastDay = new Date(year, month, 0).getDate();
@@ -115,17 +109,13 @@ export async function getMonthIndicators(
   const orders = ordersResult.data ?? [];
   const expenses = expensesResult.data ?? [];
 
-  // Build a map of date -> { revenue, expenses, deliveries }
   const dayMap: Record<string, { revenue: number; expenses: number; deliveries: number }> = {};
 
   orders.forEach((o) => {
     if (!o.delivery_date) return;
     if (!dayMap[o.delivery_date]) dayMap[o.delivery_date] = { revenue: 0, expenses: 0, deliveries: 0 };
     if (o.order_status === 'completed') {
-      // Deliveries count every completed order — delivery is an operational
-      // fact independent of whether payment was collected yet.
       dayMap[o.delivery_date].deliveries += 1;
-      // Revenue only counts orders that have actually been paid.
       if (o.payment_status === 'paid') {
         dayMap[o.delivery_date].revenue += o.total_amount ?? 0;
       }
@@ -137,7 +127,6 @@ export async function getMonthIndicators(
     dayMap[e.expense_date].expenses += e.amount ?? 0;
   });
 
-  // Convert to DayIndicator format
   const indicators: Record<string, DayIndicator> = {};
   Object.entries(dayMap).forEach(([date, data]) => {
     const netProfit = data.revenue - data.expenses;
@@ -160,7 +149,7 @@ export async function getPeriodSummary(
   const [ordersResult, expensesResult, itemsResult] = await Promise.all([
     supabase
       .from('orders')
-      .select('total_amount, order_status, payment_status')
+      .select('total_amount, order_status, payment_status, order_type, delivery_distance_km')
       .gte('delivery_date', startDate)
       .lte('delivery_date', endDate)
       .eq('order_status', 'completed'),
@@ -183,12 +172,13 @@ export async function getPeriodSummary(
   const expenses = expensesResult.data ?? [];
   const items = itemsResult.data ?? [];
 
-  // Orders Delivered is operational — every completed order counts,
-  // paid or not. Revenue is financial — only paid orders count toward it.
   const ordersDelivered = orders.length;
   const revenue = orders
     .filter((o) => o.payment_status === 'paid')
     .reduce((sum, o) => sum + (o.total_amount ?? 0), 0);
+  const totalDeliveryDistanceKm = orders
+    .filter((o) => o.order_type === 'delivery' && o.delivery_distance_km != null)
+    .reduce((sum, o) => sum + (o.delivery_distance_km ?? 0), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount ?? 0), 0);
   const productsSold = items.reduce((sum, i) => sum + (i.quantity ?? 0), 0);
   const averageOrderValue = ordersDelivered > 0 ? revenue / ordersDelivered : 0;
@@ -200,6 +190,7 @@ export async function getPeriodSummary(
     ordersDelivered,
     productsSold,
     averageOrderValue,
+    totalDeliveryDistanceKm,
   };
 }
 
@@ -226,7 +217,6 @@ export async function getProductPerformance(
     return [];
   }
 
-  // Aggregate by product + variant
   const map: Record<string, ProductPerformance> = {};
 
   (data ?? []).forEach((item: any) => {
@@ -244,14 +234,11 @@ export async function getProductPerformance(
       };
     }
 
-    // Quantity sold is operational — every completed order counts.
     map[key].totalQuantity += item.quantity ?? 0;
-    // Revenue is financial — only count it once the order is actually paid.
     if (item.orders?.payment_status === 'paid') {
       map[key].totalRevenue += item.subtotal ?? 0;
     }
   });
 
-  // Sort by quantity sold descending
   return Object.values(map).sort((a, b) => b.totalQuantity - a.totalQuantity);
 }
