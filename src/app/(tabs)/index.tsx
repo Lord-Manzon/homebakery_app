@@ -10,13 +10,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ActiveDeliveriesMap from '../../components/common/ActiveDeliveriesMap';
 import { FadeInView } from '../../components/motion/FadeInView';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import { Fonts, Radius, Shadows, Spacing } from '../../constants/theme';
 import { useTabBarHeight, useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { DashboardStats, getDashboardStats } from '../../services/dashboard';
+import { ActiveDeliveryLocation, DashboardStats, getActiveDeliveryLocations, getDashboardStats } from '../../services/dashboard';
 import { getSettings } from '../../services/settings';
 import { Settings } from '../../types';
 import { eventBus } from '../../utils/eventBus';
@@ -38,17 +39,20 @@ export default function DashboardScreen() {
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [deliveries, setDeliveries] = useState<ActiveDeliveryLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<PeriodTab>('today');
 
   async function load() {
-    const [settingsData, statsData] = await Promise.all([
+    const [settingsData, statsData, deliveryLocations] = await Promise.all([
       getSettings(),
       getDashboardStats(),
+      getActiveDeliveryLocations(),
     ]);
     setSettings(settingsData);
     setStats(statsData);
+    setDeliveries(deliveryLocations);
     setLoading(false);
   }
 
@@ -201,6 +205,24 @@ export default function DashboardScreen() {
         />
       </View>
 
+      <FadeInView delay={180} style={styles.deliveryMapSection}>
+        <View style={styles.deliveryMapHeader}>
+          <Text style={styles.deliveryMapTitle}>Active Deliveries Today</Text>
+          <Text style={styles.deliveryMapCount}>{deliveries.length}</Text>
+        </View>
+        {deliveries.length > 0 ? (
+          <ActiveDeliveriesMap
+            locations={deliveries}
+            originLat={settings?.origin_lat ?? null}
+            originLng={settings?.origin_lng ?? null}
+          />
+        ) : (
+          <View style={styles.deliveryMapEmpty}>
+            <Text style={styles.deliveryMapEmptyText}>No deliveries out today.</Text>
+          </View>
+        )}
+      </FadeInView>
+
       <FadeInView delay={200} style={styles.quickActionWrap}>
         <Button
           label="Log expense"
@@ -339,6 +361,44 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   },
   statCardFlex: {
     flex: 1,
+  },
+
+  deliveryMapSection: {
+    marginHorizontal: Spacing.three,
+    marginBottom: Spacing.two,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    ...Shadows.sm,
+  },
+  deliveryMapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  deliveryMapTitle: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  deliveryMapCount: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    color: Colors.primary,
+  },
+  deliveryMapEmpty: {
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryMapEmptyText: {
+    fontFamily: Fonts.regular,
+    fontSize: 13,
+    color: Colors.textMuted,
   },
 
   quickActionWrap: {

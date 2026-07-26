@@ -25,6 +25,7 @@ import { getProducts, getVariantsByProduct } from '../../services/products';
 import { getSettings } from '../../services/settings';
 import { Product, ProductVariant, Settings } from '../../types';
 import { getCurrencyPrefix } from '../../utils/currency';
+import { formatDistance } from '../../utils/distance';
 
 type OrderItemDraft = {
   product: Product;
@@ -249,6 +250,8 @@ export default function EditOrderModal() {
         order_type: orderType,
         delivery_address: orderType === 'delivery' ? deliveryAddress.trim() : null,
         delivery_fee: parseFloat(deliveryFee) || 0,
+        ...(distanceKm !== null ? { delivery_distance_km: distanceKm } : {}),
+        ...(selectedCoords ? { delivery_lat: selectedCoords.lat, delivery_lng: selectedCoords.lng } : {}),
         delivery_date: deliveryDate ? deliveryDate.toISOString().split('T')[0] : null,
         delivery_time: deliveryTime ? deliveryTime.toTimeString().slice(0, 5) : null,
         customer_notes: customerNotes.trim() || null,
@@ -352,16 +355,23 @@ export default function EditOrderModal() {
             </View>
           )}
 
-          {distanceKm !== null && (
+          {distanceKm !== null ? (
             <View style={styles.distanceRow}>
               <Text style={styles.distanceHint}>
-                {distanceKm.toFixed(1)} km · Suggested fee {currencyPrefix}
+                {formatDistance(distanceKm, settings?.distance_unit ?? 'km')} · Suggested fee {currencyPrefix}
                 {(distanceKm * (settings?.delivery_rate_per_km ?? 0)).toFixed(2)}
               </Text>
               <TouchableOpacity onPress={() => setShowPinModal(true)}>
                 <Text style={styles.adjustPinText}>Adjust pin</Text>
               </TouchableOpacity>
             </View>
+          ) : (
+            deliveryAddress.trim() !== '' &&
+            addressSuggestions.length === 0 && (
+              <Text style={styles.noDistanceWarning}>
+                Address not confirmed — distance won't be recorded. Tap a suggestion or use Adjust Pin.
+              </Text>
+            )
           )}
 
           {selectedCoords && (
@@ -716,6 +726,11 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     color: Colors.primary,
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  noDistanceWarning: {
+    fontSize: 12,
+    color: Colors.warning,
+    marginTop: 6,
   },
   textArea: { height: 70, textAlignVertical: 'top' },
   toggleRow: { flexDirection: 'row', gap: 8 },
