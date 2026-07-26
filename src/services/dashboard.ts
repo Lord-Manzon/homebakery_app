@@ -6,6 +6,14 @@ export type FinancialSummary = {
   netProfit: number;
 };
 
+export type ActiveDeliveryLocation = {
+  id: string;
+  customer_name: string;
+  delivery_address: string | null;
+  delivery_lat: number;
+  delivery_lng: number;
+};
+
 export type DashboardStats = {
   today: FinancialSummary;
   week: FinancialSummary;
@@ -142,4 +150,25 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     lowStockCount,
     productionCount,
   };
+}
+// Today's active (not yet completed) delivery orders that have a
+// confirmed pin — used for the dashboard's live delivery map.
+export async function getActiveDeliveryLocations(): Promise<ActiveDeliveryLocation[]> {
+  const { todayStr } = getDateRanges();
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, customer_name, delivery_address, delivery_lat, delivery_lng')
+    .eq('order_status', 'active')
+    .eq('order_type', 'delivery')
+    .eq('delivery_date', todayStr)
+    .not('delivery_lat', 'is', null)
+    .not('delivery_lng', 'is', null);
+
+  if (error) {
+    console.error('Error fetching active delivery locations:', error.message);
+    return [];
+  }
+
+  return data as ActiveDeliveryLocation[];
 }

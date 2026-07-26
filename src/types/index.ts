@@ -62,6 +62,9 @@ export type Order = {
   order_type: 'delivery' | 'pickup';
   delivery_address: string | null;
   delivery_fee: number;
+  delivery_distance_km: number | null;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   delivery_date: string | null;
   delivery_time: string | null;
   customer_notes: string | null;
