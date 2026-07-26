@@ -1,6 +1,6 @@
-import { Banknote, Gauge, MapPin, Moon, Palette, Smartphone, Store, Sun, X, type LucideIcon } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { Banknote, Gauge, MapPin, Moon, Palette, Smartphone, Store, Sun, X, type LucideIcon } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -11,7 +11,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AddressPinModal from '../../components/common/AddressPinModal';
 import { useThemeContext } from '../../contexts/ThemeContext';
+import { AddressSuggestion, autocompleteAddress, reverseGeocodeAddress } from '../../services/distance';
 import { getSettings, updateSettings } from '../../services/settings';
 
 const CURRENCIES = ['PHP', 'USD', 'EUR', 'SGD', 'MYR', 'JPY', 'AUD', 'GBP'];
@@ -31,6 +33,9 @@ export default function SettingsModal() {
   const styles = useMemo(() => getStyles(Colors), [Colors]);
   const [businessName, setBusinessName] = useState('');
   const [businessAddress, setBusinessAddress] = useState('');
+  const [originCoords, setOriginCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [deliveryRate, setDeliveryRate] = useState('20');
   const [currency, setCurrency] = useState('PHP');
   const [distanceUnit, setDistanceUnit] = useState<'km' | 'miles'>('km');
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
@@ -38,6 +43,8 @@ export default function SettingsModal() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [savedMessage, setSavedMessage] = useState(false);
+  const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -45,6 +52,10 @@ export default function SettingsModal() {
       if (data) {
         setBusinessName(data.business_name);
         setBusinessAddress(data.business_address ?? '');
+        if (data.origin_lat && data.origin_lng) {
+          setOriginCoords({ lat: data.origin_lat, lng: data.origin_lng });
+        }
+        setDeliveryRate((data.delivery_rate_per_km ?? 20).toString());
         setCurrency(data.currency);
         setDistanceUnit(data.distance_unit);
         setTheme(data.theme);
@@ -64,6 +75,9 @@ export default function SettingsModal() {
     const success = await updateSettings({
       business_name: businessName.trim(),
       business_address: businessAddress.trim() || null,
+      origin_lat: originCoords?.lat ?? null,
+      origin_lng: originCoords?.lng ?? null,
+      delivery_rate_per_km: parseFloat(deliveryRate) || 0,
       currency,
       distance_unit: distanceUnit,
       theme,
@@ -76,6 +90,30 @@ export default function SettingsModal() {
     } else {
       setErrors({ general: 'Failed to save settings. Please try again.' });
     }
+  }
+  function handleAddressChange(text: string) {
+    setBusinessAddress(text);
+    setOriginCoords(null); // clear until a suggestion is confirmed
+
+    if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
+    addressDebounceRef.current = setTimeout(async () => {
+      const results = await autocompleteAddress(text);
+      setAddressSuggestions(results);
+    }, 400);
+  }
+
+  function handleSelectAddress(suggestion: AddressSuggestion) {
+    setBusinessAddress(suggestion.label);
+    setAddressSuggestions([]);
+    setOriginCoords({ lat: suggestion.lat, lng: suggestion.lng });
+  }
+
+  async function handlePinConfirm(lat: number, lng: number) {
+    setOriginCoords({ lat, lng });
+    setShowPinModal(false);
+
+    const label = await reverseGeocodeAddress(lat, lng);
+    if (label) setBusinessAddress(label);
   }
 
   if (loading) {
@@ -154,12 +192,62 @@ export default function SettingsModal() {
               <TextInput
                 style={[styles.fieldInput, styles.multilineInput]}
                 value={businessAddress}
-                onChangeText={setBusinessAddress}
+                onChangeText={handleAddressChange}
                 placeholder="Used for delivery distance estimates"
                 placeholderTextColor={Colors.textMuted}
                 multiline
                 numberOfLines={2}
                 textAlignVertical="top"
+              />
+              {addressSuggestions.length > 0 && (
+                <View style={styles.suggestionList}>
+                  {addressSuggestions.map((s, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.suggestionItem}
+                      onPress={() => handleSelectAddress(s)}
+                    >
+                      <Text style={styles.suggestionText}>{s.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {originCoords && (
+                <View style={styles.confirmedRow}>
+                  <Text style={styles.confirmedText}>Location confirmed ✓</Text>
+                  <TouchableOpacity onPress={() => setShowPinModal(true)}>
+                    <Text style={styles.adjustPinText}>Adjust pin</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {originCoords && (
+                <AddressPinModal
+                  visible={showPinModal}
+                  initialLat={originCoords.lat}
+                  initialLng={originCoords.lng}
+                  onConfirm={handlePinConfirm}
+                  onClose={() => setShowPinModal(false)}
+                />
+              )}
+            </View>
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.fieldRow}>
+            <View style={styles.fieldIcon}>
+              <Banknote size={18} color={Colors.primary} />
+            </View>
+            <View style={styles.fieldBody}>
+              <Text style={styles.fieldLabel}>Delivery Rate (per km)</Text>
+              <TextInput
+                style={styles.fieldInput}
+                value={deliveryRate}
+                onChangeText={setDeliveryRate}
+                placeholder="20"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="numeric"
               />
             </View>
           </View>
@@ -419,6 +507,38 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     color: Colors.error,
     marginTop: 4,
     fontWeight: '500',
+  },
+  suggestionList: {
+    marginTop: 8,
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  suggestionText: { fontSize: 13, color: Colors.textPrimary },
+  confirmedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  confirmedText: {
+    fontSize: 12,
+    color: Colors.success,
+    fontWeight: '600',
+  },
+  adjustPinText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   banner: {
     marginHorizontal: 16,

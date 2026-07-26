@@ -13,8 +13,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AddressPinModal from '../../components/common/AddressPinModal';
 import { useTheme } from '../../contexts/ThemeContext';
-import { AddressSuggestion, autocompleteAddress, calculateDistanceKm } from '../../services/distance';
+import { AddressSuggestion, autocompleteAddress, calculateDistanceKm, reverseGeocodeAddress } from '../../services/distance';
 import { createOrder } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
 import { getSettings } from '../../services/settings';
@@ -75,6 +76,8 @@ export default function AddOrderModal() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
   const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -107,14 +110,22 @@ export default function AddOrderModal() {
   function handleSelectSuggestion(suggestion: AddressSuggestion) {
     setDeliveryAddress(suggestion.label);
     setAddressSuggestions([]);
+    setSelectedCoords({ lat: suggestion.lat, lng: suggestion.lng });
+    applyDistance(suggestion.lat, suggestion.lng);
+  }
 
+  async function handlePinConfirm(lat: number, lng: number) {
+    setSelectedCoords({ lat, lng });
+    setShowPinModal(false);
+    applyDistance(lat, lng);
+
+    const label = await reverseGeocodeAddress(lat, lng);
+    if (label) setDeliveryAddress(label);
+  }
+
+  function applyDistance(lat: number, lng: number) {
     if (settings?.origin_lat && settings?.origin_lng) {
-      const km = calculateDistanceKm(
-        settings.origin_lat,
-        settings.origin_lng,
-        suggestion.lat,
-        suggestion.lng
-      );
+      const km = calculateDistanceKm(settings.origin_lat, settings.origin_lng, lat, lng);
       setDistanceKm(km);
       const suggestedFee = km * (settings.delivery_rate_per_km ?? 0);
       setDeliveryFee(suggestedFee.toFixed(2));
@@ -319,10 +330,25 @@ export default function AddOrderModal() {
           )}
 
           {distanceKm !== null && (
-            <Text style={styles.distanceHint}>
-              {distanceKm.toFixed(1)} km · Suggested fee {currencyPrefix}
-              {(distanceKm * (settings?.delivery_rate_per_km ?? 0)).toFixed(2)}
-            </Text>
+            <View style={styles.distanceRow}>
+              <Text style={styles.distanceHint}>
+                {distanceKm.toFixed(1)} km · Suggested fee {currencyPrefix}
+                {(distanceKm * (settings?.delivery_rate_per_km ?? 0)).toFixed(2)}
+              </Text>
+              <TouchableOpacity onPress={() => setShowPinModal(true)}>
+                <Text style={styles.adjustPinText}>Adjust pin</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {selectedCoords && (
+            <AddressPinModal
+              visible={showPinModal}
+              initialLat={selectedCoords.lat}
+              initialLng={selectedCoords.lng}
+              onConfirm={handlePinConfirm}
+              onClose={() => setShowPinModal(false)}
+            />
           )}
         </View>
       )}
@@ -1009,9 +1035,20 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     fontSize: 13,
     color: Colors.textPrimary,
   },
+  distanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
   distanceHint: {
     fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 6,
+  },
+  adjustPinText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AlertTriangle, Minus, Plus, PlusCircle, XCircle } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -13,7 +13,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AddressPinModal from '../../components/common/AddressPinModal';
 import { useTheme } from '../../contexts/ThemeContext';
+import { AddressSuggestion, autocompleteAddress, calculateDistanceKm, reverseGeocodeAddress } from '../../services/distance';
 import {
   getOrderById,
   getOrderItems,
@@ -21,7 +23,7 @@ import {
 } from '../../services/orders';
 import { getProducts, getVariantsByProduct } from '../../services/products';
 import { getSettings } from '../../services/settings';
-import { Product, ProductVariant } from '../../types';
+import { Product, ProductVariant, Settings } from '../../types';
 import { getCurrencyPrefix } from '../../utils/currency';
 
 type OrderItemDraft = {
@@ -77,11 +79,17 @@ export default function EditOrderModal() {
   const [saving, setSaving] = useState(false);
   const [currencyPrefix, setCurrencyPrefix] = useState('₱');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load order, its items, and all products to allow re-picking
   useEffect(() => {
     async function load() {
-      const [order, items, allProducts, settings] = await Promise.all([
+      const [order, items, allProducts, settingsData] = await Promise.all([
         getOrderById(id),
         getOrderItems(id),
         getProducts(),
@@ -89,7 +97,8 @@ export default function EditOrderModal() {
       ]);
 
       setProducts(allProducts);
-      setCurrencyPrefix(getCurrencyPrefix(settings?.currency));
+      setSettings(settingsData);
+      setCurrencyPrefix(getCurrencyPrefix(settingsData?.currency));
 
       if (order) {
         setCustomerName(order.customer_name);
@@ -134,6 +143,47 @@ export default function EditOrderModal() {
     }
     loadVariants();
   }, [selectedProduct]);
+
+  function handleAddressChange(text: string) {
+    setDeliveryAddress(text);
+    setErrors((e) => ({ ...e, deliveryAddress: '' }));
+    setDistanceKm(null);
+
+    if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
+    addressDebounceRef.current = setTimeout(async () => {
+      const bias =
+        settings?.origin_lat && settings?.origin_lng
+          ? { lat: settings.origin_lat, lng: settings.origin_lng }
+          : undefined;
+      const results = await autocompleteAddress(text, bias);
+      setAddressSuggestions(results);
+    }, 400);
+  }
+
+  function handleSelectSuggestion(suggestion: AddressSuggestion) {
+    setDeliveryAddress(suggestion.label);
+    setAddressSuggestions([]);
+    setSelectedCoords({ lat: suggestion.lat, lng: suggestion.lng });
+    applyDistance(suggestion.lat, suggestion.lng);
+  }
+
+  async function handlePinConfirm(lat: number, lng: number) {
+    setSelectedCoords({ lat, lng });
+    setShowPinModal(false);
+    applyDistance(lat, lng);
+
+    const label = await reverseGeocodeAddress(lat, lng);
+    if (label) setDeliveryAddress(label);
+  }
+
+  function applyDistance(lat: number, lng: number) {
+    if (settings?.origin_lat && settings?.origin_lng) {
+      const km = calculateDistanceKm(settings.origin_lat, settings.origin_lng, lat, lng);
+      setDistanceKm(km);
+      const suggestedFee = km * (settings.delivery_rate_per_km ?? 0);
+      setDeliveryFee(suggestedFee.toFixed(2));
+    }
+  }
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -282,11 +332,47 @@ export default function EditOrderModal() {
             placeholder="Enter delivery address..."
             placeholderTextColor={Colors.textMuted}
             value={deliveryAddress}
-            onChangeText={(t) => { setDeliveryAddress(t); setErrors((e) => ({ ...e, deliveryAddress: '' })); }}
+            onChangeText={handleAddressChange}
             multiline
             numberOfLines={2}
           />
           {errors.deliveryAddress ? <Text style={styles.errorText}>{errors.deliveryAddress}</Text> : null}
+
+          {addressSuggestions.length > 0 && (
+            <View style={styles.suggestionList}>
+              {addressSuggestions.map((s, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.suggestionItem}
+                  onPress={() => handleSelectSuggestion(s)}
+                >
+                  <Text style={styles.suggestionText}>{s.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {distanceKm !== null && (
+            <View style={styles.distanceRow}>
+              <Text style={styles.distanceHint}>
+                {distanceKm.toFixed(1)} km · Suggested fee {currencyPrefix}
+                {(distanceKm * (settings?.delivery_rate_per_km ?? 0)).toFixed(2)}
+              </Text>
+              <TouchableOpacity onPress={() => setShowPinModal(true)}>
+                <Text style={styles.adjustPinText}>Adjust pin</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {selectedCoords && (
+            <AddressPinModal
+              visible={showPinModal}
+              initialLat={selectedCoords.lat}
+              initialLng={selectedCoords.lng}
+              onConfirm={handlePinConfirm}
+              onClose={() => setShowPinModal(false)}
+            />
+          )}
         </View>
       )}
 
@@ -603,6 +689,34 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   },
   inputError: { borderColor: Colors.error, borderWidth: 1.5 },
   errorText: { fontSize: 12, color: Colors.error, marginTop: 4, fontWeight: '500' },
+  suggestionList: {
+    marginTop: 4,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  suggestionText: { fontSize: 13, color: Colors.textPrimary },
+  distanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  distanceHint: { fontSize: 12, color: Colors.textSecondary },
+  adjustPinText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
   textArea: { height: 70, textAlignVertical: 'top' },
   toggleRow: { flexDirection: 'row', gap: 8 },
   toggleButton: {
