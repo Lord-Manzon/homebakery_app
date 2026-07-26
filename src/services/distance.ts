@@ -62,3 +62,22 @@ export function calculateDistanceKm(
 function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
+export async function reverseGeocodeAddress(
+  lat: number,
+  lng: number
+): Promise<string | null> {
+  try {
+    const params = new URLSearchParams({
+      lat: lat.toString(),
+      lon: lng.toString(),
+      apiKey: GEOAPIFY_KEY,
+    });
+    const res = await fetch(`https://api.geoapify.com/v1/geocode/reverse?${params}`);
+    const json = await res.json();
+    const feature = json?.features?.[0];
+    return feature?.properties?.formatted ?? null;
+  } catch (err) {
+    console.error('Reverse geocoding error:', err);
+    return null;
+  }
+}
