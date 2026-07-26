@@ -1,5 +1,5 @@
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, Flame, Layers, Package, ShoppingCart } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, Flame, Layers, Menu, Package, ShoppingCart } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Spacing } from '../../constants/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   completeProduction,
@@ -18,10 +20,12 @@ import {
   ProductionSummary,
 } from '../../services/production';
 import { getProducts, getVariantsByProduct } from '../../services/products';
+import { eventBus } from '../../utils/eventBus';
 
 export default function ProductionScreen() {
   const Colors = useTheme();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
+  const insets = useSafeAreaInsets();
   const [summary, setSummary] = useState<ProductionSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -138,13 +142,16 @@ export default function ProductionScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-  contentContainerStyle={
-    hasNoOrders ? { flexGrow: 1 } : undefined
-  }
-  refreshControl={
-    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-  }
->
+        contentContainerStyle={hasNoOrders ? { flexGrow: 1 } : undefined}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]}>
+          <TouchableOpacity onPress={() => eventBus.emit('sidebar:open')} hitSlop={12}>
+            <Menu size={24} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
         {hasNoOrders ? (
           <View style={styles.centered}>
             <Flame size={48} color="#ddd" />
@@ -675,6 +682,14 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     borderRadius: 10,
     backgroundColor: Colors.primary,
     alignItems: 'center',
+  },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginHorizontal: Spacing.three,
+    marginBottom: Spacing.two,
   },
   confirmActionDestructive: { backgroundColor: Colors.error },
   confirmActionFull: {
