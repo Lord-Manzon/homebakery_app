@@ -226,7 +226,7 @@ export default function TabsLayout() {
           name="production"
           options={{
             title: 'Production',
-            headerTitle: '',
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Flame size={size} color={color} />
             ),
