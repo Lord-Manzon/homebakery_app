@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { AlertTriangle, Minus, Package, Pencil, Plus, PlusCircle, Search, Trash2, UtensilsCrossed, X, XCircle } from 'lucide-react-native';
+import { AlertTriangle, Menu, Minus, Package, Pencil, Plus, PlusCircle, Search, Trash2, UtensilsCrossed, X, XCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FAB from '../../components/common/FAB';
 import { Spacing } from '../../constants/theme';
 import { useTabBarHeight, useTabBarVisibility } from '../../contexts/TabBarVisibilityContext';
@@ -23,9 +24,11 @@ import {
   getProductsUsingIngredient,
 } from '../../services/ingredients';
 import { Ingredient } from '../../types';
+import { eventBus } from '../../utils/eventBus';
 
 export default function InventoryScreen() {
   const Colors = useTheme();
+  const insets = useSafeAreaInsets();
   const { onScroll } = useTabBarVisibility();
   const tabBarHeight = useTabBarHeight();
   const styles = useMemo(() => getStyles(Colors), [Colors]);
@@ -222,21 +225,28 @@ export default function InventoryScreen() {
   return (
     <View style={styles.container}>
       
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <Search size={18} color={Colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search ingredients..."
-          placeholderTextColor="#999"
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <XCircle size={18} color={Colors.textMuted} />
-          </TouchableOpacity>
-        )}
+      {/* Header row — replaces the native header. The search bar itself
+          acts as the screen's identity per the list-screen header pattern,
+          so there's no separate title label here. */}
+      <View style={[styles.headerRow, { paddingTop: insets.top + Spacing.two }]}>
+        <View style={styles.searchContainer}>
+          <Search size={18} color={Colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search ingredients..."
+            placeholderTextColor="#999"
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <XCircle size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity onPress={() => eventBus.emit('sidebar:open')} hitSlop={12}>
+          <Menu size={24} color={Colors.textPrimary} />
+        </TouchableOpacity>
       </View>
 
       {/* Summary */}
@@ -589,12 +599,18 @@ const getStyles = (Colors: ReturnType<typeof useTheme>) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.card,
-    marginHorizontal: 16,
-    marginVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,

@@ -257,11 +257,10 @@ export default function TabsLayout() {
           name="inventory"
           options={{
             title: 'Inventory',
-            headerTitle: '',
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Package size={size} color={color} />
             ),
-            headerRight: () => <MenuButton />,
           }}
         />
       </Tabs>
