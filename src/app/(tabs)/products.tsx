@@ -23,8 +23,10 @@ import {
   getRecipeIngredientsForProducts,
   getVariantsForProducts,
 } from '../../services/products';
-import { Ingredient, Product, ProductVariant, RecipeIngredient } from '../../types';
+import { getSettings } from '../../services/settings';
+import { Ingredient, Product, ProductVariant, RecipeIngredient, Settings } from '../../types';
 import { calculateCostPerPiece, calculateRecipeCost } from '../../utils/costing';
+import { getCurrencyPrefix } from '../../utils/currency';
 import { eventBus } from '../../utils/eventBus';
 
 const ALL_CATEGORIES = 'All';
@@ -44,17 +46,17 @@ function categoryColorKey(category: string): (typeof CATEGORY_COLOR_KEYS)[number
 // Whole numbers drop the trailing ".00" -- 40 reads faster than 40.00 in a
 // list you scan quickly, and the precision isn't lost since it just wasn't
 // there to begin with.
-function formatMoney(n: number): string {
-  return n % 1 === 0 ? `₱${n.toFixed(0)}` : `₱${n.toFixed(2)}`;
+function formatMoney(n: number, cur: string): string {
+  return n % 1 === 0 ? `${cur}${n.toFixed(0)}` : `${cur}${n.toFixed(2)}`;
 }
 
-function formatPriceLabel(prices: number[]): string {
+function formatPriceLabel(prices: number[], cur: string): string {
   if (prices.length === 0) return '—';
   const sorted = [...prices].sort((a, b) => a - b);
   const low = sorted[0];
   const high = sorted[sorted.length - 1];
-  if (low === high) return formatMoney(low);
-  return `${formatMoney(low)} – ${formatMoney(high)}`;
+  if (low === high) return formatMoney(low, cur);
+  return `${formatMoney(low, cur)} – ${formatMoney(high, cur)}`;
 }
 
 export default function ProductsScreen() {
@@ -71,6 +73,7 @@ export default function ProductsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showGlossary, setShowGlossary] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -87,16 +90,18 @@ export default function ProductsScreen() {
     const productsData = await getProducts();
     const ids = productsData.map((p) => p.id);
 
-    const [recipeData, variantsData, ingredientsData] = await Promise.all([
+    const [recipeData, variantsData, ingredientsData, settingsData] = await Promise.all([
       getRecipeIngredientsForProducts(ids),
       getVariantsForProducts(ids),
       getIngredients(),
+      getSettings(),
     ]);
 
     setProducts(productsData);
     setRecipeIngredients(recipeData);
     setVariants(variantsData);
     setIngredients(ingredientsData);
+    setSettings(settingsData);
     setLoading(false);
   }
 
@@ -130,6 +135,8 @@ export default function ProductsScreen() {
     });
   }, [products, search, activeCategory]);
 
+  const cur = getCurrencyPrefix(settings?.currency);
+
   // Just enough costing to power the card (price range) and the "Need
   // Costing" stat -- no margin math anymore since that's not shown here;
   // full costing detail lives in Product Detail now.
@@ -143,7 +150,7 @@ export default function ProductsScreen() {
     return {
       hasCost: cost > 0,
       hasVariants: productVariants.length > 0,
-      priceLabel: formatPriceLabel(prices),
+      priceLabel: formatPriceLabel(prices, cur),
       variantCount: productVariants.length,
     };
   }
