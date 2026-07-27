@@ -9,6 +9,8 @@ type Props = {
   tone?: Tone;
   /** Escape hatch for one-off colors that don't fit the standard tones (e.g. a brand-tinted status). Overrides `tone` when set. */
   color?: { bg: string; text: string };
+  /** Optional solid dot before the label (e.g. a stock-status indicator: green/amber/red) — a plain circle centers more reliably than an icon glyph */
+  dotColor?: string;
 };
 
 /**
@@ -17,7 +19,7 @@ type Props = {
  * *Background token yet, so it uses the same color+alpha trick already
  * used elsewhere in the app (e.g. production.tsx) rather than a solid fill.
  */
-export function Badge({ label, tone = 'neutral', color }: Props) {
+export function Badge({ label, tone = 'neutral', color, dotColor }: Props) {
   const Colors = useTheme();
 
   const toneStyles: Record<Tone, { bg: string; text: string }> = {
@@ -32,6 +34,7 @@ export function Badge({ label, tone = 'neutral', color }: Props) {
 
   return (
     <View style={[styles.base, { backgroundColor: bg }]}>
+      {dotColor && <View style={[styles.dot, { backgroundColor: dotColor }]} />}
       <Text style={[styles.label, { color: text }]}>{label}</Text>
     </View>
   );
@@ -39,10 +42,18 @@ export function Badge({ label, tone = 'neutral', color }: Props) {
 
 const styles = StyleSheet.create({
   base: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.half + 2,
     borderRadius: Radius.full,
     paddingVertical: Spacing.half + 1,
     paddingHorizontal: Spacing.two,
     alignSelf: 'flex-start',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   label: {
     fontFamily: Fonts.medium,
