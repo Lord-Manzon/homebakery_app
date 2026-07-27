@@ -165,9 +165,35 @@ export default function ProductsScreen() {
     const index = filtered.findIndex((p) => p.id === pendingScrollId);
     if (index === -1) return;
 
-    flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.15 });
+    // FlatList's internal data can lag behind the `filtered` prop right
+    // after a state update (especially with numColumns), so scrollToIndex
+    // can throw a hard Invariant Violation (out of range) rather than the
+    // softer onScrollToIndexFailed callback -- that callback only covers
+    // "not measured yet," not "list hasn't caught up to this many items
+    // yet." A fixed delay isn't reliable since re-render timing varies, so
+    // this retries a few times with a growing delay instead of guessing one
+    // number, wrapped in try/catch since the throw happens synchronously.
+    let attempt = 0;
+    let timer: ReturnType<typeof setTimeout>;
+
+    function tryScroll() {
+      try {
+        flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.15 });
+      } catch {
+        attempt += 1;
+        if (attempt < 5) {
+          timer = setTimeout(tryScroll, attempt * 75);
+        }
+        // After 5 attempts, give up silently -- the card is still
+        // highlighted below, so the person can scroll to it manually.
+      }
+    }
+
+    timer = setTimeout(tryScroll, 50);
     setHighlightId(pendingScrollId);
     setPendingScrollId(null);
+
+    return () => clearTimeout(timer);
   }, [pendingScrollId, filtered]);
 
   useEffect(() => {
