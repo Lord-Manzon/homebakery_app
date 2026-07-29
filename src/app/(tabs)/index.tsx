@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
-import { AlertCircle, Banknote, ChevronRight, Clipboard, Flame, Menu, Receipt } from 'lucide-react-native';
-import { useCallback, useMemo, useState } from 'react';
+import { AlertCircle, Banknote, ChevronLeft, ChevronRight, Clipboard, Flame, Menu, Receipt } from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActiveDeliveriesMap from '../../components/common/ActiveDeliveriesMap';
+import FullscreenDeliveryMap from '../../components/common/FullscreenDeliveryMap';
 import { FadeInView } from '../../components/motion/FadeInView';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
@@ -40,6 +41,8 @@ export default function DashboardScreen() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [deliveries, setDeliveries] = useState<ActiveDeliveryLocation[]>([]);
+  const [deliveryIndex, setDeliveryIndex] = useState(0);
+  const [showFullscreenMap, setShowFullscreenMap] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<PeriodTab>('today');
@@ -57,6 +60,12 @@ export default function DashboardScreen() {
   }
 
   useFocusEffect(useCallback(() => { load(); }, []));
+
+  useEffect(() => {
+    if (deliveryIndex > deliveries.length - 1) {
+      setDeliveryIndex(Math.max(0, deliveries.length - 1));
+    }
+  }, [deliveries, deliveryIndex]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -92,6 +101,8 @@ export default function DashboardScreen() {
     day: 'numeric',
   });
 
+  const currentDelivery = deliveries[deliveryIndex] ?? null;
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -101,11 +112,6 @@ export default function DashboardScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Greeting replaces the old native "Dashboard" header title. The
-          native header is fully hidden for this tab now (see _layout.tsx)
-          so we own the top safe-area inset and the menu icon ourselves —
-          this removes the dead empty header-bar space the native header
-          reserved even with the title blanked out. */}
       <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]}>
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
@@ -137,7 +143,6 @@ export default function DashboardScreen() {
         ))}
       </View>
 
-      {/* Hero — the "big" tile in the bento grid, full width */}
       <FadeInView delay={0}>
         <TouchableOpacity
           style={styles.heroCard}
@@ -172,9 +177,6 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </FadeInView>
 
-      {/* Three small tiles in a row — the size contrast against the hero
-          above is what makes this read as a bento grid instead of a
-          uniform list of identical cards. */}
       <View style={styles.statsRow}>
         <StatCard
           icon={Clipboard}
@@ -210,18 +212,67 @@ export default function DashboardScreen() {
           <Text style={styles.deliveryMapTitle}>Active Deliveries Today</Text>
           <Text style={styles.deliveryMapCount}>{deliveries.length}</Text>
         </View>
-        {deliveries.length > 0 ? (
-          <ActiveDeliveriesMap
-            locations={deliveries}
-            originLat={settings?.origin_lat ?? null}
-            originLng={settings?.origin_lng ?? null}
-          />
+
+        {currentDelivery ? (
+          <>
+            <ActiveDeliveriesMap
+              locations={deliveries}
+              originLat={settings?.origin_lat ?? null}
+              originLng={settings?.origin_lng ?? null}
+              focusedId={currentDelivery.id}
+              onPress={() => setShowFullscreenMap(true)}
+            />
+            <View style={styles.deliveryNavRow}>
+              <TouchableOpacity
+                onPress={() => setDeliveryIndex((i) => Math.max(0, i - 1))}
+                disabled={deliveryIndex === 0}
+                style={[styles.navArrow, deliveryIndex === 0 && styles.navArrowDisabled]}
+              >
+                <ChevronLeft size={20} color={deliveryIndex === 0 ? Colors.textMuted : Colors.primary} />
+              </TouchableOpacity>
+
+              <View style={styles.deliveryInfo}>
+                <Text style={styles.deliveryName}>{currentDelivery.customer_name}</Text>
+                {currentDelivery.delivery_address && (
+                  <Text style={styles.deliveryAddress} numberOfLines={1}>
+                    {currentDelivery.delivery_address}
+                  </Text>
+                )}
+                <Text style={styles.deliveryPosition}>
+                  {deliveryIndex + 1} of {deliveries.length}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setDeliveryIndex((i) => Math.min(deliveries.length - 1, i + 1))}
+                disabled={deliveryIndex === deliveries.length - 1}
+                style={[
+                  styles.navArrow,
+                  deliveryIndex === deliveries.length - 1 && styles.navArrowDisabled,
+                ]}
+              >
+                <ChevronRight
+                  size={20}
+                  color={deliveryIndex === deliveries.length - 1 ? Colors.textMuted : Colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+          </>
         ) : (
           <View style={styles.deliveryMapEmpty}>
             <Text style={styles.deliveryMapEmptyText}>No deliveries out today.</Text>
           </View>
         )}
       </FadeInView>
+
+      <FullscreenDeliveryMap
+        visible={showFullscreenMap}
+        locations={deliveries}
+        originLat={settings?.origin_lat ?? null}
+        originLng={settings?.origin_lng ?? null}
+        focusLocationId={currentDelivery?.id ?? null}
+        onClose={() => setShowFullscreenMap(false)}
+      />
 
       <FadeInView delay={200} style={styles.quickActionWrap}>
         <Button
@@ -364,8 +415,8 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
   },
 
   deliveryMapSection: {
-    marginHorizontal: Spacing.three,
-    marginBottom: Spacing.two,
+    margin: Spacing.three,
+    marginTop: 0,
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -378,7 +429,7 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.three,
   },
   deliveryMapTitle: {
     fontFamily: Fonts.medium,
@@ -399,6 +450,48 @@ const getStyles = (Colors: Record<string, string>) => StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: 13,
     color: Colors.textMuted,
+  },
+
+  deliveryNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two,
+    gap: Spacing.two,
+  },
+  navArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
+  },
+  navArrowDisabled: {
+    opacity: 0.4,
+  },
+  deliveryInfo: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  deliveryName: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  deliveryAddress: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  deliveryPosition: {
+    fontFamily: Fonts.regular,
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 4,
   },
 
   quickActionWrap: {
